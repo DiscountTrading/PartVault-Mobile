@@ -46,7 +46,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
       const now = new Date()
       const yy = String(now.getFullYear()).slice(-2)
       const mm = String(now.getMonth() + 1).padStart(2, '0')
-      const carRef = car.id.slice(-4).toUpperCase()
+      const carRef = (car.make || 'UNKN').replace(/\s+/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X')
       const { count } = await sb.from('parts').select('*', { count: 'exact', head: true }).eq('car_id', car.id).is('deleted_at', null)
       const partSeq = String((count || 0) + 1).padStart(3, '0')
       const sku = `${yy}${mm}-${carRef}-${partSeq}`
