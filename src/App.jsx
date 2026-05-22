@@ -16,19 +16,19 @@ export default function App() {
     sb.auth.getSession().then(({ data: { session }, error }) => {
       if (error) { setInitError(error.message); return }
       setSession(session)
-      if (session) loadStore(session.user.id)
+      if (session) loadStore()
     }).catch(e => setInitError(e.message))
     const { data: { subscription } } = sb.auth.onAuthStateChange((_e, session) => {
       setSession(session)
-      if (session) loadStore(session.user.id)
+      if (session) loadStore()
       else { setStoreId(null); setScreen('home') }
     })
     return () => subscription.unsubscribe()
   }, [])
 
-  const loadStore = async (userId) => {
-    const { data } = await sb.from('store_users').select('store_id').eq('user_id', userId).single()
-    if (data) setStoreId(data.store_id)
+  const loadStore = async () => {
+    const { data } = await sb.rpc('get_my_profile')
+    if (data?.length > 0) setStoreId(data[0].store_id)
   }
 
   if (initError) return (
