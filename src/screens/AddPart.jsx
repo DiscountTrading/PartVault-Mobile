@@ -43,9 +43,12 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         photos = [{ url }]
       }
       const subcategory = form.subcategory || (EBAY_AU_CATEGORIES[form.category]?.[0] || '')
+      const skuBase = [car.make, car.model, car.year].filter(Boolean).join('-').replace(/\s+/g, '').toUpperCase().slice(0, 20)
+      const sku = `${skuBase}-${Date.now().toString(36).toUpperCase()}`
       const { data, error } = await sb.from('parts').insert({
         store_id: storeId,
         car_id: car.id,
+        sku,
         title: form.title,
         category: form.category,
         subcategory,
