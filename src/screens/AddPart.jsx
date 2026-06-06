@@ -70,6 +70,16 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         ai_assessed: false,
       }).select().single()
       if (error) throw error
+      // Dual-write: also insert into the new photos table (column above kept during transition)
+      if (photos.length) {
+        const { error: photoErr } = await sb.from('photos').insert(
+          photos.map((ph, i) => ({
+            parent_type: 'part', parent_id: data.id, url: ph.url,
+            display_order: i, is_primary: i === 0, source: 'upload',
+          }))
+        )
+        if (photoErr) console.warn('photos table insert failed', photoErr)
+      }
       onSave(data)
     } catch (e) {
       setError(e.message)
