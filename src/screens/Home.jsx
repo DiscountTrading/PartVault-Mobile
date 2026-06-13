@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
 import { C, MAKES } from '../lib/constants'
 
-export default function Home({ onSelectCar, storeId }) {
+export default function Home({ onSelectCar, storeId, stores = [], activeStoreId, setActiveStore }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -49,7 +49,17 @@ export default function Home({ onSelectCar, storeId }) {
     <div style={{ minHeight: '100vh', background: C.bg }}>
       {/* Header */}
       <div style={{ background: C.headerBg, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
+          {stores.length > 1 ? (
+            <select value={activeStoreId || ''} onChange={e => setActiveStore(e.target.value)}
+              style={{ marginTop: 4, maxWidth: '60vw', background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '4px 8px', fontSize: 13, fontWeight: 600, outline: 'none' }}>
+              {stores.map(s => <option key={s.store_id} value={s.store_id} style={{ color: '#111' }}>{s.store_name}</option>)}
+            </select>
+          ) : stores.length === 1 ? (
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>{stores[0].store_name}</div>
+          ) : null}
+        </div>
         <button onClick={() => sb.auth.signOut()} style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13, cursor: 'pointer' }}>
           Sign Out
         </button>

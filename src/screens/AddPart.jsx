@@ -43,13 +43,10 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         photos = [{ url }]
       }
       const subcategory = form.subcategory || (EBAY_AU_CATEGORIES[form.category]?.[0] || '')
-      const now = new Date()
-      const yy = String(now.getFullYear()).slice(-2)
-      const mm = String(now.getMonth() + 1).padStart(2, '0')
-      const carRef = (car.make || 'UNKN').replace(/\s+/g, '').toUpperCase().slice(0, 4).padEnd(4, 'X')
-      const { count } = await sb.from('parts').select('*', { count: 'exact', head: true }).eq('car_id', car.id).is('deleted_at', null)
-      const partSeq = String((count || 0) + 1).padStart(3, '0')
-      const sku = `${yy}${mm}-${carRef}-${partSeq}`
+      // SKU comes from the store's admin-configured format (atomic store-wide counter),
+      // so mobile and admin stay consistent — the PWA is just an extension of the admin app.
+      const { data: sku, error: skuErr } = await sb.rpc('generate_next_sku', { p_store_id: storeId, p_car_make: car.make || null })
+      if (skuErr || !sku) throw new Error(skuErr?.message || 'Could not generate SKU')
       const { data, error } = await sb.from('parts').insert({
         store_id: storeId,
         car_id: car.id,
