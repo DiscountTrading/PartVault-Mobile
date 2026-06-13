@@ -8,15 +8,18 @@ export default function Home({ onSelectCar, storeId, stores = [], activeStoreId,
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ make: '', model: '', year: '', purchase_price: '' })
   const [saving, setSaving] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('active') // active (default) | complete | all
 
   const load = async () => {
     setLoading(true)
-    const { data } = await sb.from('cars').select('*').eq('store_id', storeId).eq('status', 'active').order('created_at', { ascending: false })
+    let q = sb.from('cars').select('*').eq('store_id', storeId)
+    if (statusFilter !== 'all') q = q.eq('status', statusFilter)
+    const { data } = await q.order('created_at', { ascending: false })
     setCars(data || [])
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [storeId])
+  useEffect(() => { load() }, [storeId, statusFilter])
 
   const addCar = async () => {
     if (!form.make) return
@@ -66,11 +69,21 @@ export default function Home({ onSelectCar, storeId, stores = [], activeStoreId,
       </div>
 
       <div style={{ padding: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>Active Cars</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>Cars</div>
           <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
             + Add Car
           </button>
+        </div>
+
+        {/* Status filter — defaults to Active */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {[['active', 'Active'], ['complete', 'Complete'], ['all', 'All']].map(([val, label]) => (
+            <button key={val} onClick={() => setStatusFilter(val)}
+              style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${statusFilter === val ? C.accent : C.border}`, background: statusFilter === val ? C.accent : '#fff', color: statusFilter === val ? '#fff' : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              {label}
+            </button>
+          ))}
         </div>
 
         {loading && <div style={{ textAlign: 'center', color: C.muted, padding: 40 }}>Loading…</div>}
@@ -78,7 +91,7 @@ export default function Home({ onSelectCar, storeId, stores = [], activeStoreId,
         {!loading && cars.length === 0 && (
           <div style={{ textAlign: 'center', color: C.muted, padding: 60 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🚗</div>
-            <div style={{ fontSize: 15 }}>No active cars yet</div>
+            <div style={{ fontSize: 15 }}>{statusFilter === 'active' ? 'No active cars' : statusFilter === 'complete' ? 'No completed cars' : 'No cars yet'}</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>Add a car to start adding parts</div>
           </div>
         )}
@@ -89,7 +102,12 @@ export default function Home({ onSelectCar, storeId, stores = [], activeStoreId,
               style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, textAlign: 'left', cursor: 'pointer', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: C.text }}>{car.make} {car.model}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {car.make} {car.model}
+                    {car.status !== 'active' && (
+                      <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, background: C.border, borderRadius: 6, padding: '1px 7px', textTransform: 'capitalize' }}>{car.status}</span>
+                    )}
+                  </div>
                   <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>{car.year}{car.purchase_price ? ` · $${car.purchase_price}` : ''}</div>
                 </div>
                 <div style={{ fontSize: 20 }}>›</div>

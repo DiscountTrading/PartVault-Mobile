@@ -11,6 +11,8 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState(null)
   const [completingCar, setCompletingCar] = useState(false)
+  const [confirmComplete, setConfirmComplete] = useState(false)
+  const [carStatus, setCarStatus] = useState(car.status || 'active')
 
   const load = async () => {
     setLoading(true)
@@ -52,7 +54,15 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
     setCompletingCar(true)
     await sb.from('cars').update({ status: 'complete' }).eq('id', car.id)
     setCompletingCar(false)
+    setConfirmComplete(false)
     onBack()
+  }
+
+  const reactivateCar = async () => {
+    setCompletingCar(true)
+    await sb.from('cars').update({ status: 'active' }).eq('id', car.id)
+    setCarStatus('active')
+    setCompletingCar(false)
   }
 
   const inStock = parts.filter(p => p.status === 'in_stock')
@@ -65,6 +75,9 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
           <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', fontSize: 22, cursor: 'pointer', padding: 0, lineHeight: 1 }}>‹</button>
           <div style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>{car.make} {car.model} {car.year}</div>
+          {carStatus !== 'active' && (
+            <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.18)', borderRadius: 6, padding: '2px 8px', textTransform: 'capitalize' }}>{carStatus}</span>
+          )}
         </div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', paddingLeft: 34 }}>
           {parts.length} part{parts.length !== 1 ? 's' : ''} · {inStock.length} in stock · {listed.length} listed
@@ -129,12 +142,37 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
             style={{ flex: 2, padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
             + Add Part
           </button>
-          <button onClick={completeCar} disabled={completingCar}
-            style={{ flex: 1, padding: 14, background: '#fff', color: C.text, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-            {completingCar ? '…' : 'Complete'}
-          </button>
+          {carStatus === 'complete' ? (
+            <button onClick={reactivateCar} disabled={completingCar}
+              style={{ flex: 1, padding: 14, background: '#fff', color: C.accent, border: `1.5px solid ${C.accent}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              {completingCar ? '…' : 'Reactivate'}
+            </button>
+          ) : (
+            <button onClick={() => setConfirmComplete(true)} disabled={completingCar}
+              style={{ flex: 1, padding: 14, background: '#fff', color: C.muted, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+              Mark Complete
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Confirm completion — prevents an accidental tap from archiving the car */}
+      {confirmComplete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }}>
+          <div style={{ background: C.card, borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 8 }}>Mark car complete?</div>
+            <div style={{ fontSize: 14, color: C.muted, marginBottom: 20, lineHeight: 1.5 }}>
+              {car.make} {car.model} will move out of Active Cars. You can still find it under the Complete filter and reactivate it if more parts come off.
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmComplete(false)} style={{ flex: 1, padding: 14, background: '#fff', border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={completeCar} disabled={completingCar} style={{ flex: 2, padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: completingCar ? 0.6 : 1 }}>
+                {completingCar ? 'Saving…' : 'Mark Complete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
