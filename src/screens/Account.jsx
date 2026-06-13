@@ -37,7 +37,7 @@ export default function Account({ email, stores = [], activeStoreId, setActiveSt
         {/* Where listing happens */}
         <div style={{ marginTop: 20, padding: 14, background: '#f0f6ff', border: '1px solid #cfe0ff', borderRadius: 12, fontSize: 13, color: C.text, lineHeight: 1.5 }}>
           📋 Use this app to capture parts in the yard. Reviewing and listing them to eBay is done from the PartVault admin on a computer.
-          <a href="https://admin.partvault.app" target="_blank" rel="noopener"
+          <a href="https://admin.partvault.app" target="partvault-admin" rel="noopener"
             style={{ display: 'block', marginTop: 12, textAlign: 'center', background: '#fff', color: C.accent, border: `1.5px solid ${C.accent}`, borderRadius: 10, padding: '11px', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
             🖥️ Open Admin Panel ↗
           </a>
