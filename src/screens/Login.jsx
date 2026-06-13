@@ -6,13 +6,14 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [step, setStep] = useState('email')
+  const [creating, setCreating] = useState(false) // true = new worker creating an account
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const sendCode = async () => {
     setError('')
     setLoading(true)
-    const { error: e } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } })
+    const { error: e } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: creating } })
     if (e) setError(e.message)
     else setStep('code')
     setLoading(false)
@@ -31,7 +32,7 @@ export default function Login() {
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{ fontSize: 28, fontWeight: 800, color: C.accent, fontFamily: "'Inter Tight',system-ui,sans-serif", letterSpacing: '-0.5px' }}>PartVault</div>
-          <div style={{ fontSize: 14, color: C.muted, marginTop: 4 }}>Field App</div>
+          <div style={{ fontSize: 14, color: C.muted, marginTop: 4 }}>{creating ? 'Create your account' : 'Field App'}</div>
         </div>
 
         <div style={{ background: C.card, borderRadius: 16, padding: 24, border: `1px solid ${C.border}` }}>
@@ -51,7 +52,11 @@ export default function Login() {
                 onClick={sendCode} disabled={loading || !email}
                 style={{ width: '100%', padding: '14px', background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: (loading || !email) ? 0.6 : 1 }}
               >
-                {loading ? 'Sending…' : 'Send Code'}
+                {loading ? 'Sending…' : creating ? 'Create Account' : 'Send Code'}
+              </button>
+              <button onClick={() => { setCreating(c => !c); setError('') }}
+                style={{ width: '100%', marginTop: 12, padding: '8px', background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer' }}>
+                {creating ? '← I already have an account' : "First time? Create an account"}
               </button>
             </>
           ) : (

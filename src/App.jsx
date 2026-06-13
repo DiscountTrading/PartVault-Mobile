@@ -9,6 +9,38 @@ import Account from './screens/Account'
 
 const ACTIVE_KEY = 'pv_active_store'
 
+function JoinStore({ onJoined }) {
+  const [code, setCode] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const join = async () => {
+    if (!code.trim()) return
+    setBusy(true); setErr('')
+    const { error } = await sb.rpc('join_store', { p_join_code: code.trim() })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    onJoined()
+  }
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🏪</div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 6 }}>Join a store</div>
+        <div style={{ fontSize: 14, color: C.muted, marginBottom: 20, lineHeight: 1.5 }}>Enter the join code your store owner gave you.</div>
+        <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && join()}
+          placeholder="JOIN CODE" autoCapitalize="characters"
+          style={{ width: '100%', padding: '14px', borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 18, fontWeight: 700, letterSpacing: 2, textAlign: 'center', boxSizing: 'border-box', outline: 'none', marginBottom: 14, fontFamily: 'monospace' }} />
+        {err && <div style={{ color: C.red, fontSize: 13, marginBottom: 14 }}>{err}</div>}
+        <button onClick={join} disabled={busy || !code.trim()}
+          style={{ width: '100%', padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: (busy || !code.trim()) ? 0.6 : 1 }}>
+          {busy ? 'Joining…' : 'Join Store'}
+        </button>
+        <button onClick={() => sb.auth.signOut()} style={{ marginTop: 16, background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer' }}>Sign Out</button>
+      </div>
+    </div>
+  )
+}
+
 function BottomBar({ tab, onCars, onAccount }) {
   const item = (active, icon, label, onClick) => (
     <button onClick={onClick}
@@ -95,13 +127,7 @@ export default function App() {
     </div>
   )
 
-  if (!activeStoreId) return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, flexDirection: 'column', gap: 8 }}>
-      <div style={{ color: '#111827', fontWeight: 600 }}>No store access</div>
-      <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center' }}>Your account isn't a member of any store yet. Ask an admin to add you, or create a store in the admin panel.</div>
-      <button onClick={() => sb.auth.signOut()} style={{ marginTop: 8, background: '#f3f4f6', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer' }}>Sign Out</button>
-    </div>
-  )
+  if (!activeStoreId) return <JoinStore onJoined={loadStores} />
 
   // The bottom bar shows on the top-level screens; deep capture flows hide it to stay focused.
   const inCarsFlow = tab === 'cars' && (screen === 'car-detail' || screen === 'add-part')
