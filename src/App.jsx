@@ -1,18 +1,37 @@
 import { useState, useEffect } from 'react'
 import { sb } from './lib/supabase'
+import { C } from './lib/constants'
 import Login from './screens/Login'
 import Home from './screens/Home'
 import CarDetail from './screens/CarDetail'
 import AddPart from './screens/AddPart'
+import Account from './screens/Account'
 
 const ACTIVE_KEY = 'pv_active_store'
+
+function BottomBar({ tab, onCars, onAccount }) {
+  const item = (active, icon, label, onClick) => (
+    <button onClick={onClick}
+      style={{ flex: 1, background: 'none', border: 'none', padding: '8px 0', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: active ? C.accent : C.muted }}>
+      <span style={{ fontSize: 20 }}>{icon}</span>
+      <span style={{ fontSize: 11, fontWeight: 600 }}>{label}</span>
+    </button>
+  )
+  return (
+    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: `1px solid ${C.border}`, display: 'flex', zIndex: 50, paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      {item(tab === 'cars', '🚗', 'Cars', onCars)}
+      {item(tab === 'account', '👤', 'Account', onAccount)}
+    </div>
+  )
+}
 
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [stores, setStores] = useState([])
   const [activeStoreId, setActiveStoreId] = useState(null)
   const [storesLoaded, setStoresLoaded] = useState(false)
-  const [screen, setScreen] = useState('home')
+  const [tab, setTab] = useState('cars')          // 'cars' | 'account'
+  const [screen, setScreen] = useState('list')     // within Cars: 'list' | 'car-detail' | 'add-part'
   const [selectedCar, setSelectedCar] = useState(null)
   const [initError, setInitError] = useState(null)
 
@@ -25,7 +44,7 @@ export default function App() {
     const { data: { subscription } } = sb.auth.onAuthStateChange((_e, session) => {
       setSession(session)
       if (session) loadStores()
-      else { setStores([]); setActiveStoreId(null); setStoresLoaded(false); setScreen('home') }
+      else { setStores([]); setActiveStoreId(null); setStoresLoaded(false); setTab('cars'); setScreen('list') }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -49,8 +68,11 @@ export default function App() {
     setActiveStoreId(id)
     localStorage.setItem(ACTIVE_KEY, id)
     setSelectedCar(null)
-    setScreen('home')
+    setScreen('list')
   }
+
+  const goCars = () => { setTab('cars'); setScreen('list') }
+  const goAccount = () => setTab('account')
 
   if (initError) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, flexDirection: 'column', gap: 8 }}>
@@ -81,31 +103,36 @@ export default function App() {
     </div>
   )
 
-  if (screen === 'add-part') return (
-    <AddPart
-      car={selectedCar}
-      storeId={activeStoreId}
-      onSave={() => setScreen('car-detail')}
-      onCancel={() => setScreen('car-detail')}
-    />
-  )
-
-  if (screen === 'car-detail') return (
-    <CarDetail
-      car={selectedCar}
-      storeId={activeStoreId}
-      onBack={() => { setSelectedCar(null); setScreen('home') }}
-      onAddPart={() => setScreen('add-part')}
-    />
-  )
+  // The bottom bar shows on the top-level screens; deep capture flows hide it to stay focused.
+  const inCarsFlow = tab === 'cars' && (screen === 'car-detail' || screen === 'add-part')
+  const showBottomBar = !inCarsFlow
 
   return (
-    <Home
-      storeId={activeStoreId}
-      stores={stores}
-      activeStoreId={activeStoreId}
-      setActiveStore={setActiveStore}
-      onSelectCar={car => { setSelectedCar(car); setScreen('car-detail') }}
-    />
+    <div>
+      {tab === 'account' ? (
+        <Account email={session.user?.email} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} />
+      ) : screen === 'add-part' ? (
+        <AddPart
+          car={selectedCar}
+          storeId={activeStoreId}
+          onSave={() => setScreen('car-detail')}
+          onCancel={() => setScreen('car-detail')}
+        />
+      ) : screen === 'car-detail' ? (
+        <CarDetail
+          car={selectedCar}
+          storeId={activeStoreId}
+          onBack={() => { setSelectedCar(null); setScreen('list') }}
+          onAddPart={() => setScreen('add-part')}
+        />
+      ) : (
+        <Home
+          storeId={activeStoreId}
+          activeStore={stores.find(s => s.store_id === activeStoreId)}
+          onSelectCar={car => { setSelectedCar(car); setScreen('car-detail') }}
+        />
+      )}
+      {showBottomBar && <BottomBar tab={tab} onCars={goCars} onAccount={goAccount} />}
+    </div>
   )
 }

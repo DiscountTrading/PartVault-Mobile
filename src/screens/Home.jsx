@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
 import { C, MAKES } from '../lib/constants'
 
-export default function Home({ onSelectCar, storeId, stores = [], activeStoreId, setActiveStore }) {
+export default function Home({ onSelectCar, storeId, activeStore }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ make: '', model: '', year: '', purchase_price: '' })
   const [saving, setSaving] = useState(false)
   const [statusFilter, setStatusFilter] = useState('active') // active (default) | complete | all
+  const [search, setSearch] = useState('')
 
   const load = async () => {
     setLoading(true)
@@ -42,33 +43,20 @@ export default function Home({ onSelectCar, storeId, stores = [], activeStoreId,
     }
   }
 
-  const partCountStyle = count => ({
-    fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 10,
-    background: count > 0 ? C.accent + '18' : C.border,
-    color: count > 0 ? C.accent : C.muted,
-  })
+  const q = search.trim().toLowerCase()
+  const visibleCars = q
+    ? cars.filter(c => [c.make, c.model, c.year].filter(Boolean).join(' ').toLowerCase().includes(q))
+    : cars
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
       {/* Header */}
-      <div style={{ background: C.headerBg, padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
-          {stores.length > 1 ? (
-            <select value={activeStoreId || ''} onChange={e => setActiveStore(e.target.value)}
-              style={{ marginTop: 4, maxWidth: '60vw', background: 'rgba(255,255,255,0.12)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '4px 8px', fontSize: 13, fontWeight: 600, outline: 'none' }}>
-              {stores.map(s => <option key={s.store_id} value={s.store_id} style={{ color: '#111' }}>{s.store_name}</option>)}
-            </select>
-          ) : stores.length === 1 ? (
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>{stores[0].store_name}</div>
-          ) : null}
-        </div>
-        <button onClick={() => sb.auth.signOut()} style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13, cursor: 'pointer' }}>
-          Sign Out
-        </button>
+      <div style={{ background: C.headerBg, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
+        {activeStore && <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>{activeStore.store_name}</div>}
       </div>
 
-      <div style={{ padding: 20 }}>
+      <div style={{ padding: 20, paddingBottom: 90 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>Cars</div>
           <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
@@ -77,7 +65,7 @@ export default function Home({ onSelectCar, storeId, stores = [], activeStoreId,
         </div>
 
         {/* Status filter — defaults to Active */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {[['active', 'Active'], ['complete', 'Complete'], ['all', 'All']].map(([val, label]) => (
             <button key={val} onClick={() => setStatusFilter(val)}
               style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${statusFilter === val ? C.accent : C.border}`, background: statusFilter === val ? C.accent : '#fff', color: statusFilter === val ? '#fff' : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
@@ -86,18 +74,22 @@ export default function Home({ onSelectCar, storeId, stores = [], activeStoreId,
           ))}
         </div>
 
+        {/* Search */}
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search make, model, year…"
+          style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 15, marginBottom: 16, boxSizing: 'border-box', outline: 'none' }} />
+
         {loading && <div style={{ textAlign: 'center', color: C.muted, padding: 40 }}>Loading…</div>}
 
-        {!loading && cars.length === 0 && (
+        {!loading && visibleCars.length === 0 && (
           <div style={{ textAlign: 'center', color: C.muted, padding: 60 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🚗</div>
-            <div style={{ fontSize: 15 }}>{statusFilter === 'active' ? 'No active cars' : statusFilter === 'complete' ? 'No completed cars' : 'No cars yet'}</div>
-            <div style={{ fontSize: 13, marginTop: 4 }}>Add a car to start adding parts</div>
+            <div style={{ fontSize: 15 }}>{q ? 'No matching cars' : statusFilter === 'active' ? 'No active cars' : statusFilter === 'complete' ? 'No completed cars' : 'No cars yet'}</div>
+            <div style={{ fontSize: 13, marginTop: 4 }}>{q ? 'Try a different search' : 'Add a car to start adding parts'}</div>
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {cars.map(car => (
+          {visibleCars.map(car => (
             <button key={car.id} onClick={() => onSelectCar(car)}
               style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, textAlign: 'left', cursor: 'pointer', width: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
