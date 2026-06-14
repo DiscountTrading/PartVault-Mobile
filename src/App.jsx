@@ -41,6 +41,24 @@ function JoinStore({ onJoined }) {
   )
 }
 
+function DesktopNotice() {
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 820px)').matches)
+  const [dismissed, setDismissed] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 820px)')
+    const handler = e => setWide(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+  if (!wide || dismissed) return null
+  return (
+    <div style={{ background: '#fffbeb', borderBottom: '1px solid #fcd34d', padding: '9px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 13, color: '#1c1c1e' }}>
+      <span>📱 The PartVault field app is built for phones. On a computer, the <a href="https://admin.partvault.app" target="partvault-admin" rel="noopener" style={{ color: C.accent, fontWeight: 700 }}>Admin panel</a> works better.</span>
+      <button onClick={() => setDismissed(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8c66', fontSize: 14, lineHeight: 1 }}>✕</button>
+    </div>
+  )
+}
+
 function BottomBar({ tab, onCars, onAccount }) {
   const item = (active, icon, label, onClick) => (
     <button onClick={onClick}
@@ -119,7 +137,7 @@ export default function App() {
     </div>
   )
 
-  if (!session) return <Login />
+  if (!session) return <><DesktopNotice /><Login /></>
 
   if (!storesLoaded) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
@@ -135,6 +153,7 @@ export default function App() {
 
   return (
     <div>
+      <DesktopNotice />
       {tab === 'account' ? (
         <Account email={session.user?.email} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} />
       ) : screen === 'add-part' ? (
