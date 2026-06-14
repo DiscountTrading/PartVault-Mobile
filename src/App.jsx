@@ -85,6 +85,9 @@ export default function App() {
   const [selectedCar, setSelectedCar] = useState(null)
   const [initError, setInitError] = useState(null)
 
+  // Name this window so the admin's "Field App" link returns to this tab
+  useEffect(() => { window.name = 'partvault-app' }, [])
+
   useEffect(() => {
     sb.auth.getSession().then(({ data: { session }, error }) => {
       if (error) { setInitError(error.message); return }
