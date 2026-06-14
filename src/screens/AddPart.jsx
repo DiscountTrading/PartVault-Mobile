@@ -9,7 +9,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
   const [form, setForm] = useState({
     title: '', category: CATEGORY_NAMES[0], subcategory: '',
-    condition: 'Used – Good', list_price: '', notes: '',
+    condition: 'Used – Good', list_price: '', notes: '', weight: '',
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -75,6 +75,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         notes: form.notes,
         status: 'in_stock',
         source: 'manual',
+        weight: form.weight ? +form.weight : null,
         photos: uploaded.map(p => ({ url: p.url })),
         make: car.make || '',
         model: car.model || '',
@@ -173,6 +174,12 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
               style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
           </div>
         </div>
+
+        {/* Weight */}
+        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Weight (grams) — for accurate shipping</label>
+        <input value={form.weight} onChange={e => set('weight', e.target.value)}
+          placeholder="e.g. 1500" type="number" inputMode="numeric"
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
 
         {/* Notes */}
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Notes</label>
