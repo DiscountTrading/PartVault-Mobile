@@ -53,7 +53,7 @@ function DesktopNotice() {
   if (!wide || dismissed) return null
   return (
     <div style={{ background: '#fffbeb', borderBottom: '1px solid #fcd34d', padding: '9px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 13, color: '#1c1c1e' }}>
-      <span>📱 The PartVault field app is built for phones. On a computer, the <a href="https://admin.partvault.app" target="partvault-admin" rel="noopener" style={{ color: C.accent, fontWeight: 700 }}>Admin panel</a> works better.</span>
+      <span>📱 The PartVault field app is built for phones. On a computer, the <a href="https://admin.partvault.app" target="partvault-admin" style={{ color: C.accent, fontWeight: 700 }}>Admin panel</a> works better.</span>
       <button onClick={() => setDismissed(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8c66', fontSize: 14, lineHeight: 1 }}>✕</button>
     </div>
   )
