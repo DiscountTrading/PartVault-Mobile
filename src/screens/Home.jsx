@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { C, MAKES } from '../lib/constants'
+import { makeMainAndThumb } from '../lib/image'
+
+const MAX_CAR_PHOTOS = 8
 
 export default function Home({ onSelectCar, storeId, activeStore }) {
   const [cars, setCars] = useState([])
@@ -10,6 +13,8 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
   const [saving, setSaving] = useState(false)
   const [statusFilter, setStatusFilter] = useState('active') // active (default) | complete | all
   const [search, setSearch] = useState('')
+  const [carPhotos, setCarPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
+  const carFileRef = useRef()
 
   const load = async () => {
     setLoading(true)
@@ -21,6 +26,35 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
   }
 
   useEffect(() => { load() }, [storeId, statusFilter])
+
+  const uploadCarPhoto = async (file) => {
+    const { main, thumb } = await makeMainAndThumb(file)
+    const base = `car-photos/${storeId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const up = async (blob, suffix) => {
+      const path = `${base}${suffix}.jpg`
+      const { error } = await sb.storage.from('part-photos').upload(path, blob, { contentType: 'image/jpeg' })
+      if (error) throw error
+      return sb.storage.from('part-photos').getPublicUrl(path).data.publicUrl
+    }
+    return { url: await up(main, ''), thumb_url: await up(thumb, '_t') }
+  }
+
+  const addCarPhotos = async (e) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    for (const file of files) {
+      if (carPhotos.length >= MAX_CAR_PHOTOS) break
+      const id = Math.random().toString(36).slice(2)
+      setCarPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
+      try {
+        const { url, thumb_url } = await uploadCarPhoto(file)
+        setCarPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
+      } catch { setCarPhotos(p => p.filter(x => x.id !== id)) }
+    }
+  }
+  const removeCarPhoto = (id) => setCarPhotos(p => p.filter(x => x.id !== id))
+  const carUploading = carPhotos.some(p => p.uploading)
+  const closeAddCar = () => { setShowAdd(false); setForm({ make: '', model: '', year: '', purchase_price: '' }); setCarPhotos([]) }
 
   const addCar = async () => {
     if (!form.make) return
@@ -35,10 +69,20 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
       purchase_price: form.purchase_price ? +form.purchase_price : null,
       status: 'active',
     }).select().single()
+    if (!error && data) {
+      const uploaded = carPhotos.filter(p => p.url)
+      if (uploaded.length) {
+        await sb.from('photos').insert(uploaded.map((ph, i) => ({
+          parent_type: 'car', parent_id: data.id, url: ph.url, thumb_url: ph.thumb_url,
+          display_order: i, is_primary: i === 0, source: 'upload',
+        })))
+      }
+    }
     setSaving(false)
     if (!error) {
       setShowAdd(false)
       setForm({ make: '', model: '', year: '', purchase_price: '' })
+      setCarPhotos([])
       onSelectCar(data)
     }
   }
@@ -139,10 +183,26 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
               </div>
             </div>
 
+            {/* Car photos — shared across every part from this car */}
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Car photos {carPhotos.length > 0 && `(${carPhotos.length})`}</label>
+            <input ref={carFileRef} type="file" accept="image/*" capture="environment" multiple onChange={addCarPhotos} style={{ display: 'none' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
+              {carPhotos.map(p => (
+                <div key={p.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: '#fff', border: `1px solid ${C.border}` }}>
+                  <img src={p.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1 }} />
+                  {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>⏳</div>}
+                  <button onClick={() => removeCarPhoto(p.id)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: '18px' }}>×</button>
+                </div>
+              ))}
+              {carPhotos.length < MAX_CAR_PHOTOS && (
+                <button onClick={() => carFileRef.current?.click()} style={{ aspectRatio: '1', background: '#fff', border: `2px dashed ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 22 }}>📷</button>
+              )}
+            </div>
+
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 14, background: '#fff', border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={addCar} disabled={saving || !form.make} style={{ flex: 2, padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: (saving || !form.make) ? 0.6 : 1 }}>
-                {saving ? 'Saving…' : 'Add Car'}
+              <button onClick={closeAddCar} style={{ flex: 1, padding: 14, background: '#fff', border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={addCar} disabled={saving || carUploading || !form.make} style={{ flex: 2, padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: (saving || carUploading || !form.make) ? 0.6 : 1 }}>
+                {saving ? 'Saving…' : carUploading ? 'Processing…' : 'Add Car'}
               </button>
             </div>
           </div>
