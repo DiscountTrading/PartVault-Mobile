@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { C, PART_CONDITIONS, EBAY_AU_CATEGORIES, CATEGORY_NAMES } from '../lib/constants'
+import { makeMainAndThumb } from '../lib/image'
+
+const MAX_PHOTOS = 12
 
 export default function AddPart({ car, storeId, onSave, onCancel }) {
-  const [photo, setPhoto] = useState(null)
-  const [photoFile, setPhotoFile] = useState(null)
+  const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
   const [form, setForm] = useState({
     title: '', category: CATEGORY_NAMES[0], subcategory: '',
     condition: 'Used – Good', list_price: '', notes: '',
@@ -15,33 +17,47 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const onPhoto = e => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setPhotoFile(file)
-    setPhoto(URL.createObjectURL(file))
+  // Compress to a main (~1600px) + thumb (~320px) and upload both.
+  const uploadOne = async (file) => {
+    const { main, thumb } = await makeMainAndThumb(file)
+    const base = `${storeId}/${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const up = async (blob, suffix) => {
+      const path = `${base}${suffix}.jpg`
+      const { error } = await sb.storage.from('part-photos').upload(path, blob, { contentType: 'image/jpeg' })
+      if (error) throw error
+      return sb.storage.from('part-photos').getPublicUrl(path).data.publicUrl
+    }
+    const url = await up(main, '')
+    const thumb_url = await up(thumb, '_t')
+    return { url, thumb_url }
   }
 
-  const uploadPhoto = async (file) => {
-    const ext = file.name.split('.').pop() || 'jpg'
-    const path = `${storeId}/${Date.now()}.${ext}`
-    const { error } = await sb.storage.from('part-photos').upload(path, file, { contentType: file.type })
-    if (error) throw error
-    const { data } = sb.storage.from('part-photos').getPublicUrl(path)
-    return data.publicUrl
+  const addPhotos = async (e) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    for (const file of files) {
+      if (photos.length >= MAX_PHOTOS) { setError(`Up to ${MAX_PHOTOS} photos per part`); break }
+      const id = Math.random().toString(36).slice(2)
+      setPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
+      try {
+        const { url, thumb_url } = await uploadOne(file)
+        setPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
+      } catch (err) {
+        setError(err.message)
+        setPhotos(p => p.filter(x => x.id !== id))
+      }
+    }
   }
+
+  const removePhoto = (id) => setPhotos(p => p.filter(x => x.id !== id))
+  const anyUploading = photos.some(p => p.uploading)
 
   const save = async () => {
     if (!form.title || !form.list_price) { setError('Title and price are required'); return }
     setError('')
     setSaving(true)
     try {
-      const { data: { user } } = await sb.auth.getUser()
-      let photos = []
-      if (photoFile) {
-        const url = await uploadPhoto(photoFile)
-        photos = [{ url }]
-      }
+      const uploaded = photos.filter(p => p.url)
       const subcategory = form.subcategory || (EBAY_AU_CATEGORIES[form.category]?.[0] || '')
       // SKU comes from the store's admin-configured format (atomic store-wide counter),
       // so mobile and admin stay consistent — the PWA is just an extension of the admin app.
@@ -59,7 +75,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         notes: form.notes,
         status: 'in_stock',
         source: 'manual',
-        photos,
+        photos: uploaded.map(p => ({ url: p.url })),
         make: car.make || '',
         model: car.model || '',
         year: car.year || '',
@@ -67,11 +83,11 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         ai_assessed: false,
       }).select().single()
       if (error) throw error
-      // Dual-write: also insert into the new photos table (column above kept during transition)
-      if (photos.length) {
+      // Dual-write: also insert into the new photos table (the source of truth)
+      if (uploaded.length) {
         const { error: photoErr } = await sb.from('photos').insert(
-          photos.map((ph, i) => ({
-            parent_type: 'part', parent_id: data.id, url: ph.url,
+          uploaded.map((ph, i) => ({
+            parent_type: 'part', parent_id: data.id, url: ph.url, thumb_url: ph.thumb_url,
             display_order: i, is_primary: i === 0, source: 'upload',
           }))
         )
@@ -95,25 +111,30 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
       </div>
 
       <div style={{ padding: 20, paddingBottom: 100 }}>
-        {/* Photo */}
+        {/* Photos */}
         <div style={{ marginBottom: 20 }}>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPhoto} style={{ display: 'none' }} />
-          {photo ? (
-            <div style={{ position: 'relative' }}>
-              <img src={photo} alt="Part" style={{ width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 12, display: 'block' }} />
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={addPhotos} style={{ display: 'none' }} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Photos {photos.length > 0 && `(${photos.length}/${MAX_PHOTOS})`}</label>
+            {photos.length > 0 && <span style={{ fontSize: 11, color: C.muted }}>First = main image</span>}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {photos.map((p, i) => (
+              <div key={p.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', background: C.card, border: `1px solid ${C.border}` }}>
+                <img src={p.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1 }} />
+                {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.3)' }}>⏳</div>}
+                {i === 0 && !p.uploading && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: C.accent, color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>MAIN</div>}
+                <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>×</button>
+              </div>
+            ))}
+            {photos.length < MAX_PHOTOS && (
               <button onClick={() => fileRef.current?.click()}
-                style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 13, cursor: 'pointer' }}>
-                Retake
+                style={{ aspectRatio: '1', background: C.card, border: `2px dashed ${C.border}`, borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                <div style={{ fontSize: 26 }}>📷</div>
+                <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{photos.length ? 'Add' : 'Add photos'}</div>
               </button>
-            </div>
-          ) : (
-            <button onClick={() => fileRef.current?.click()}
-              style={{ width: '100%', height: 180, background: C.card, border: `2px dashed ${C.border}`, borderRadius: 12, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <div style={{ fontSize: 36 }}>📷</div>
-              <div style={{ fontSize: 15, color: C.muted, fontWeight: 600 }}>Take Photo</div>
-              <div style={{ fontSize: 12, color: C.muted }}>Opens camera</div>
-            </button>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Title */}
@@ -164,9 +185,9 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
 
       {/* Fixed bottom button */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px', background: C.bg, borderTop: `1px solid ${C.border}` }}>
-        <button onClick={save} disabled={saving || !form.title || !form.list_price}
-          style={{ width: '100%', padding: 16, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: (saving || !form.title || !form.list_price) ? 0.6 : 1 }}>
-          {saving ? 'Saving…' : '✓ Save Part'}
+        <button onClick={save} disabled={saving || anyUploading || !form.title || !form.list_price}
+          style={{ width: '100%', padding: 16, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: (saving || anyUploading || !form.title || !form.list_price) ? 0.6 : 1 }}>
+          {saving ? 'Saving…' : anyUploading ? 'Processing photos…' : '✓ Save Part'}
         </button>
       </div>
     </div>
