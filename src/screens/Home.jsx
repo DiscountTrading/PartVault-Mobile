@@ -185,7 +185,7 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
 
             {/* Car photos — shared across every part from this car */}
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Car photos {carPhotos.length > 0 && `(${carPhotos.length})`}</label>
-            <input ref={carFileRef} type="file" accept="image/*" capture="environment" multiple onChange={addCarPhotos} style={{ display: 'none' }} />
+            <input ref={carFileRef} type="file" accept="image/*" multiple onChange={addCarPhotos} style={{ display: 'none' }} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
               {carPhotos.map(p => (
                 <div key={p.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: '#fff', border: `1px solid ${C.border}` }}>

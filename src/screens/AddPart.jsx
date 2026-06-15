@@ -114,7 +114,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
       <div style={{ padding: 20, paddingBottom: 100 }}>
         {/* Photos */}
         <div style={{ marginBottom: 20 }}>
-          <input ref={fileRef} type="file" accept="image/*" capture="environment" multiple onChange={addPhotos} style={{ display: 'none' }} />
+          <input ref={fileRef} type="file" accept="image/*" multiple onChange={addPhotos} style={{ display: 'none' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Photos {photos.length > 0 && `(${photos.length}/${MAX_PHOTOS})`}</label>
             {photos.length > 0 && <span style={{ fontSize: 11, color: C.muted }}>First = main image</span>}
