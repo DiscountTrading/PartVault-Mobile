@@ -2,8 +2,9 @@ import { useState, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { C, PART_CONDITIONS, EBAY_AU_CATEGORIES, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
+import CameraCapture from '../components/CameraCapture'
 
-const MAX_PHOTOS = 12
+const MAX_PHOTOS = 24
 
 export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
@@ -13,6 +14,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [cameraOpen, setCameraOpen] = useState(false)
   const fileRef = useRef()
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -32,21 +34,24 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
     return { url, thumb_url }
   }
 
-  const addPhotos = async (e) => {
+  // Compress + upload a single file/blob, tracked in the photos grid. Shared by
+  // the album picker and the continuous camera.
+  const ingest = async (file) => {
+    const id = Math.random().toString(36).slice(2)
+    setPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
+    try {
+      const { url, thumb_url } = await uploadOne(file)
+      setPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
+    } catch (err) {
+      setError(err.message)
+      setPhotos(p => p.filter(x => x.id !== id))
+    }
+  }
+
+  const addPhotos = (e) => {
     const files = Array.from(e.target.files || [])
     e.target.value = ''
-    for (const file of files) {
-      if (photos.length >= MAX_PHOTOS) { setError(`Up to ${MAX_PHOTOS} photos per part`); break }
-      const id = Math.random().toString(36).slice(2)
-      setPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
-      try {
-        const { url, thumb_url } = await uploadOne(file)
-        setPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
-      } catch (err) {
-        setError(err.message)
-        setPhotos(p => p.filter(x => x.id !== id))
-      }
-    }
+    files.slice(0, Math.max(0, MAX_PHOTOS - photos.length)).forEach(ingest)
   }
 
   const removePhoto = (id) => setPhotos(p => p.filter(x => x.id !== id))
@@ -128,14 +133,15 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
                 <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>×</button>
               </div>
             ))}
-            {photos.length < MAX_PHOTOS && (
-              <button onClick={() => fileRef.current?.click()}
-                style={{ aspectRatio: '1', background: C.card, border: `2px dashed ${C.border}`, borderRadius: 10, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                <div style={{ fontSize: 26 }}>📷</div>
-                <div style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{photos.length ? 'Add' : 'Add photos'}</div>
-              </button>
-            )}
           </div>
+          {photos.length < MAX_PHOTOS && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <button onClick={() => setCameraOpen(true)}
+                style={{ flex: 2, padding: 13, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>📷 Camera</button>
+              <button onClick={() => fileRef.current?.click()}
+                style={{ flex: 1, padding: 13, background: C.card, color: C.text, border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>🖼️ Album</button>
+            </div>
+          )}
         </div>
 
         {/* Title */}
@@ -197,6 +203,16 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
           {saving ? 'Saving…' : anyUploading ? 'Processing photos…' : '✓ Save Part'}
         </button>
       </div>
+
+      {cameraOpen && (
+        <CameraCapture
+          onCapture={ingest}
+          onClose={() => setCameraOpen(false)}
+          count={photos.length}
+          max={MAX_PHOTOS}
+          recentThumbs={photos.map(p => p.preview)}
+        />
+      )}
     </div>
   )
 }
