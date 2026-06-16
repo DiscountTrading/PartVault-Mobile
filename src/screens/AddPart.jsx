@@ -1,8 +1,9 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, PART_CONDITIONS, EBAY_AU_CATEGORIES, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
 import CameraCapture from '../components/CameraCapture'
+const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
 const MAX_PHOTOS = 24
 
@@ -15,6 +16,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [editing, setEditing] = useState(null) // { id, source }
   const fileRef = useRef()
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -56,6 +58,23 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
 
   const removePhoto = (id) => setPhotos(p => p.filter(x => x.id !== id))
   const anyUploading = photos.some(p => p.uploading)
+
+  // Save an edited photo: replace the original in place (re-upload).
+  const onEditSave = async (edited) => {
+    const id = editing?.id
+    setEditing(null)
+    if (!id || !edited?.imageBase64) return
+    try {
+      const blob = await (await fetch(edited.imageBase64)).blob()
+      const preview = URL.createObjectURL(blob)
+      setPhotos(p => p.map(x => x.id === id ? { ...x, preview, uploading: true } : x))
+      const { url, thumb_url } = await uploadOne(blob)
+      setPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
+    } catch (err) {
+      setError(err.message)
+      setPhotos(p => p.map(x => x.id === id ? { ...x, uploading: false } : x))
+    }
+  }
 
   const save = async () => {
     if (!form.title || !form.list_price) { setError('Title and price are required'); return }
@@ -131,6 +150,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
                 {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.3)' }}>⏳</div>}
                 {i === 0 && !p.uploading && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: C.accent, color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>MAIN</div>}
                 <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>×</button>
+                {!p.uploading && <button onClick={() => setEditing({ id: p.id, source: p.preview })} style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>✎</button>}
               </div>
             ))}
           </div>
@@ -212,6 +232,12 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
           max={MAX_PHOTOS}
           recentThumbs={photos.map(p => p.preview)}
         />
+      )}
+
+      {editing && (
+        <Suspense fallback={<div style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', zIndex: 2500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading editor…</div>}>
+          <PhotoEditor source={editing.source} onSave={onEditSave} onClose={() => setEditing(null)} />
+        </Suspense>
       )}
     </div>
   )
