@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
-import { getStoreAnthropicKey, assessPartFromUrl } from '../lib/ai'
+import { assessPartFromUrl } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
@@ -12,14 +12,11 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
   const [form, setForm] = useState({ title: '', list_price: '', notes: '' })
   const [aiAssess, setAiAssess] = useState(true)
-  const [aiKey, setAiKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [editing, setEditing] = useState(null) // { id, source }
   const fileRef = useRef()
-
-  useEffect(() => { if (storeId) getStoreAnthropicKey(storeId).then(setAiKey).catch(() => {}) }, [storeId])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -120,8 +117,8 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
       }
       // Kick off AI assessment in the background so it's ready by the time you're
       // back at the office. Fire-and-forget — navigation keeps the request alive.
-      if (aiAssess && aiKey && uploaded[0]?.url && data?.id) {
-        assessPartFromUrl(uploaded[0].url, car, aiKey).then(p => sb.from('parts').update({
+      if (aiAssess && uploaded[0]?.url && data?.id) {
+        assessPartFromUrl(uploaded[0].url, car, storeId).then(p => sb.from('parts').update({
           title: p.title || form.title,
           category: p.category || CATEGORY_NAMES[0],
           subcategory: p.subcategory || '',
@@ -201,7 +198,6 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
           <input type="checkbox" checked={aiAssess} onChange={e => setAiAssess(e.target.checked)} style={{ width: 18, height: 18 }} />
           <span>✨ Assess with AI after saving<br /><span style={{ fontSize: 11, color: C.muted }}>Runs in the background so it's ready when you're back at the office.</span></span>
         </label>
-        {aiAssess && !aiKey && <div style={{ fontSize: 11, color: C.red, marginBottom: 8 }}>No AI key set for this store (Admin → Settings → Account). Saving without AI.</div>}
 
         {error && <div style={{ color: C.red, fontSize: 13, marginBottom: 12 }}>✗ {error}</div>}
       </div>
