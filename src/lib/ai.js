@@ -3,25 +3,20 @@ import { CATEGORY_NAMES } from './constants'
 
 const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ai-assess'
 
-async function urlToBase64(url) {
-  const blob = await (await fetch(url)).blob()
-  return new Promise((resolve, reject) => {
-    const r = new FileReader()
-    r.onload = () => resolve(String(r.result).split(',')[1])
-    r.onerror = reject
-    r.readAsDataURL(blob)
-  })
-}
-
-// Identify a part from its photo + the donor car. The Anthropic key lives as an
-// edge-function secret — never in the client — so no per-store key is needed.
-export async function assessPartFromUrl(photoUrl, car, storeId) {
-  const photoBase64 = await urlToBase64(photoUrl)
+// Assess a part from its photo and write the result back to the part row. The
+// edge function holds the Anthropic key (a secret — never in the client),
+// fetches the photo, runs the assessment, and saves the result server-side with
+// the service role, so it doesn't depend on the mobile role's RLS update rights
+// or the app staying open. Pass partId to have it applied automatically.
+export async function assessPartFromUrl(photoUrl, car, storeId, opts = {}) {
   const { data: { session } } = await sb.auth.getSession()
   const res = await fetch(EDGE_FN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-    body: JSON.stringify({ storeId, photoBase64, car, categories: CATEGORY_NAMES }),
+    body: JSON.stringify({
+      storeId, photoUrl, car, categories: CATEGORY_NAMES,
+      partId: opts.partId, existingTitle: opts.existingTitle, existingPrice: opts.existingPrice,
+    }),
   })
   const d = await res.json()
   if (!res.ok || d.error) throw new Error(d.error || 'AI assessment failed')

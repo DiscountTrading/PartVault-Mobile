@@ -116,19 +116,12 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         if (photoErr) console.warn('photos table insert failed', photoErr)
       }
       // Kick off AI assessment in the background so it's ready by the time you're
-      // back at the office. Fire-and-forget — navigation keeps the request alive.
+      // back at the office. The edge function writes the result back to the part
+      // itself (service role), so this is fire-and-forget — no client update.
       if (aiAssess && uploaded[0]?.url && data?.id) {
-        assessPartFromUrl(uploaded[0].url, car, storeId).then(p => sb.from('parts').update({
-          title: p.title || form.title,
-          category: p.category || CATEGORY_NAMES[0],
-          subcategory: p.subcategory || '',
-          condition: p.condition || 'Used – Good',
-          description: p.description || null,
-          part_number: p.partNumber || null,
-          weight: p.weight || null,
-          list_price: +form.list_price > 0 ? +form.list_price : (p.listPrice || 0),
-          ai_assessed: true,
-        }).eq('id', data.id)).catch(e => console.warn('AI assess failed', e))
+        assessPartFromUrl(uploaded[0].url, car, storeId, {
+          partId: data.id, existingTitle: form.title, existingPrice: +form.list_price || 0,
+        }).catch(e => console.warn('AI assess failed', e))
       }
       onSave(data)
     } catch (e) {
