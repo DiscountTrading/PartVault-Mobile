@@ -15,6 +15,25 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
   const [search, setSearch] = useState('')
   const [carPhotos, setCarPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
   const carFileRef = useRef()
+  const [vin, setVin] = useState('')
+  const [vinLooking, setVinLooking] = useState(false)
+  const [vinMsg, setVinMsg] = useState('')
+
+  // Decode a VIN to prefill make/model/year via NHTSA's free vPIC API (no key).
+  const lookupVin = async () => {
+    const v = vin.trim()
+    if (v.length < 11) { setVinMsg('Enter a full VIN'); return }
+    setVinLooking(true); setVinMsg('')
+    try {
+      const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(v)}?format=json`)
+      const r = (await res.json())?.Results?.[0] || {}
+      const make = r.Make ? r.Make.charAt(0) + r.Make.slice(1).toLowerCase() : ''
+      if (!make) { setVinMsg('No match for that VIN'); setVinLooking(false); return }
+      setForm(f => ({ ...f, make: make || f.make, model: r.Model || f.model, year: r.ModelYear || f.year }))
+      setVinMsg(`✓ ${[make, r.Model, r.ModelYear].filter(Boolean).join(' ')}`)
+    } catch { setVinMsg('Lookup failed — enter details manually') }
+    setVinLooking(false)
+  }
 
   const load = async () => {
     setLoading(true)
@@ -54,7 +73,7 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
   }
   const removeCarPhoto = (id) => setCarPhotos(p => p.filter(x => x.id !== id))
   const carUploading = carPhotos.some(p => p.uploading)
-  const closeAddCar = () => { setShowAdd(false); setForm({ make: '', model: '', year: '', purchase_price: '' }); setCarPhotos([]) }
+  const closeAddCar = () => { setShowAdd(false); setForm({ make: '', model: '', year: '', purchase_price: '' }); setCarPhotos([]); setVin(''); setVinMsg('') }
 
   const addCar = async () => {
     if (!form.make) return
@@ -158,6 +177,16 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ background: C.card, borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 20 }}>Add Car</div>
+
+            {/* VIN lookup (free NHTSA decode) — prefills make / model / year */}
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>VIN (optional — auto-fills details)</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: vinMsg ? 4 : 14 }}>
+              <input value={vin} onChange={e => setVin(e.target.value.toUpperCase())} placeholder="17-character VIN"
+                style={{ flex: 1, padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 15, boxSizing: 'border-box', outline: 'none', fontFamily: 'monospace' }} />
+              <button onClick={lookupVin} disabled={vinLooking}
+                style={{ padding: '0 16px', background: C.text, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: vinLooking ? 0.6 : 1 }}>{vinLooking ? '…' : 'Look up'}</button>
+            </div>
+            {vinMsg && <div style={{ fontSize: 11, color: vinMsg.startsWith('✓') ? C.green : C.red, marginBottom: 12 }}>{vinMsg}</div>}
 
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Make *</label>
             <select value={form.make} onChange={e => setForm(f => ({ ...f, make: e.target.value }))}

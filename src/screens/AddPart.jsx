@@ -1,7 +1,8 @@
-import { useState, useRef, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
-import { C, PART_CONDITIONS, EBAY_AU_CATEGORIES, CATEGORY_NAMES } from '../lib/constants'
+import { C, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
+import { getStoreAnthropicKey, assessPartFromUrl } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
@@ -9,15 +10,16 @@ const MAX_PHOTOS = 24
 
 export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
-  const [form, setForm] = useState({
-    title: '', category: CATEGORY_NAMES[0], subcategory: '',
-    condition: 'Used – Good', list_price: '', notes: '', weight: '',
-  })
+  const [form, setForm] = useState({ title: '', list_price: '', notes: '' })
+  const [aiAssess, setAiAssess] = useState(true)
+  const [aiKey, setAiKey] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [editing, setEditing] = useState(null) // { id, source }
   const fileRef = useRef()
+
+  useEffect(() => { if (storeId) getStoreAnthropicKey(storeId).then(setAiKey).catch(() => {}) }, [storeId])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -77,12 +79,11 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   }
 
   const save = async () => {
-    if (!form.title || !form.list_price) { setError('Title and price are required'); return }
+    if (!form.title) { setError('Add a quick label so you can find this part'); return }
     setError('')
     setSaving(true)
     try {
       const uploaded = photos.filter(p => p.url)
-      const subcategory = form.subcategory || (EBAY_AU_CATEGORIES[form.category]?.[0] || '')
       // SKU comes from the store's admin-configured format (atomic store-wide counter),
       // so mobile and admin stay consistent — the PWA is just an extension of the admin app.
       const { data: sku, error: skuErr } = await sb.rpc('generate_next_sku', { p_store_id: storeId, p_car_make: car.make || null })
@@ -92,14 +93,13 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         car_id: car.id,
         sku,
         title: form.title,
-        category: form.category,
-        subcategory,
-        condition: form.condition,
-        list_price: +form.list_price,
+        category: CATEGORY_NAMES[0],
+        subcategory: '',
+        condition: 'Used – Good',
+        list_price: +form.list_price || 0,
         notes: form.notes,
         status: 'in_stock',
         source: 'manual',
-        weight: form.weight ? +form.weight : null,
         photos: uploaded.map(p => ({ url: p.url })),
         make: car.make || '',
         model: car.model || '',
@@ -118,14 +118,27 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         )
         if (photoErr) console.warn('photos table insert failed', photoErr)
       }
+      // Kick off AI assessment in the background so it's ready by the time you're
+      // back at the office. Fire-and-forget — navigation keeps the request alive.
+      if (aiAssess && aiKey && uploaded[0]?.url && data?.id) {
+        assessPartFromUrl(uploaded[0].url, car, aiKey).then(p => sb.from('parts').update({
+          title: p.title || form.title,
+          category: p.category || CATEGORY_NAMES[0],
+          subcategory: p.subcategory || '',
+          condition: p.condition || 'Used – Good',
+          description: p.description || null,
+          part_number: p.partNumber || null,
+          weight: p.weight || null,
+          list_price: +form.list_price > 0 ? +form.list_price : (p.listPrice || 0),
+          ai_assessed: true,
+        }).eq('id', data.id)).catch(e => console.warn('AI assess failed', e))
+      }
       onSave(data)
     } catch (e) {
       setError(e.message)
     }
     setSaving(false)
   }
-
-  const subcats = EBAY_AU_CATEGORIES[form.category] || []
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
@@ -164,62 +177,39 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
           )}
         </div>
 
-        {/* Title */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Title *</label>
+        {/* Quick reference label */}
+        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Quick label *</label>
         <input value={form.title} onChange={e => set('title', e.target.value)}
-          placeholder={`${car.make} ${car.model} ${car.year || ''} …`}
+          placeholder={`e.g. ${car.make} ${car.model} headlight`}
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 4, boxSizing: 'border-box', outline: 'none' }} />
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Just for you to find it — AI writes the full eBay title before listing.</div>
+
+        {/* Price (optional) */}
+        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>List price (optional)</label>
+        <input value={form.list_price} onChange={e => set('list_price', e.target.value)}
+          placeholder="$0 — set later or let AI suggest" type="number" inputMode="decimal"
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
 
-        {/* Category */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Category</label>
-        <select value={form.category} onChange={e => { set('category', e.target.value); set('subcategory', '') }}
-          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 15, marginBottom: 14, boxSizing: 'border-box', background: '#fff' }}>
-          {CATEGORY_NAMES.map(c => <option key={c}>{c}</option>)}
-        </select>
-
-        {/* Subcategory */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Subcategory</label>
-        <select value={form.subcategory} onChange={e => set('subcategory', e.target.value)}
-          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 15, marginBottom: 14, boxSizing: 'border-box', background: '#fff' }}>
-          {subcats.map(s => <option key={s}>{s}</option>)}
-        </select>
-
-        {/* Condition + Price */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
-          <div>
-            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Condition</label>
-            <select value={form.condition} onChange={e => set('condition', e.target.value)}
-              style={{ width: '100%', padding: '12px 10px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 14, boxSizing: 'border-box', background: '#fff' }}>
-              {PART_CONDITIONS.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>List Price *</label>
-            <input value={form.list_price} onChange={e => set('list_price', e.target.value)}
-              placeholder="$0" type="number" inputMode="decimal"
-              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
-          </div>
-        </div>
-
-        {/* Weight */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Weight (grams) — for accurate shipping</label>
-        <input value={form.weight} onChange={e => set('weight', e.target.value)}
-          placeholder="e.g. 1500" type="number" inputMode="numeric"
-          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
-
-        {/* Notes */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Notes</label>
+        {/* Notes (optional) */}
+        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
         <textarea value={form.notes} onChange={e => set('notes', e.target.value)}
-          placeholder="Any additional details…" rows={3}
-          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 15, boxSizing: 'border-box', resize: 'none', outline: 'none', marginBottom: 8 }} />
+          placeholder="Anything worth telling the AI / buyer…" rows={2}
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 15, boxSizing: 'border-box', resize: 'none', outline: 'none', marginBottom: 14 }} />
+
+        {/* AI assess toggle */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.text, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+          <input type="checkbox" checked={aiAssess} onChange={e => setAiAssess(e.target.checked)} style={{ width: 18, height: 18 }} />
+          <span>✨ Assess with AI after saving<br /><span style={{ fontSize: 11, color: C.muted }}>Runs in the background so it's ready when you're back at the office.</span></span>
+        </label>
+        {aiAssess && !aiKey && <div style={{ fontSize: 11, color: C.red, marginBottom: 8 }}>No AI key set for this store (Admin → Settings → Account). Saving without AI.</div>}
 
         {error && <div style={{ color: C.red, fontSize: 13, marginBottom: 12 }}>✗ {error}</div>}
       </div>
 
       {/* Fixed bottom button */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px', background: C.bg, borderTop: `1px solid ${C.border}` }}>
-        <button onClick={save} disabled={saving || anyUploading || !form.title || !form.list_price}
-          style={{ width: '100%', padding: 16, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: (saving || anyUploading || !form.title || !form.list_price) ? 0.6 : 1 }}>
+        <button onClick={save} disabled={saving || anyUploading || !form.title}
+          style={{ width: '100%', padding: 16, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: (saving || anyUploading || !form.title) ? 0.6 : 1 }}>
           {saving ? 'Saving…' : anyUploading ? 'Processing photos…' : '✓ Save Part'}
         </button>
       </div>
