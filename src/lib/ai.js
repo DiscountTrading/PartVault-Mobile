@@ -15,7 +15,7 @@ export async function assessPartFromUrls(photoUrls, car, storeId, opts = {}) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
     body: JSON.stringify({
-      storeId, photoUrls, car, categories: CATEGORY_NAMES,
+      storeId, photoUrls, car, carId: car?.id, categories: CATEGORY_NAMES,
       partId: opts.partId, existingTitle: opts.existingTitle, existingPrice: opts.existingPrice,
     }),
   })
