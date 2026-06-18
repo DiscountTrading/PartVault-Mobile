@@ -3,18 +3,19 @@ import { CATEGORY_NAMES } from './constants'
 
 const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ai-assess'
 
-// Assess a part from its photo and write the result back to the part row. The
-// edge function holds the Anthropic key (a secret — never in the client),
-// fetches the photo, runs the assessment, and saves the result server-side with
-// the service role, so it doesn't depend on the mobile role's RLS update rights
-// or the app staying open. Pass partId to have it applied automatically.
-export async function assessPartFromUrl(photoUrl, car, storeId, opts = {}) {
+// Assess a part from all its photos and write the result back to the part row.
+// The edge function holds the Anthropic key (a secret — never in the client),
+// loads the photos, runs the assessment across every angle/close-up, and saves
+// the result server-side with the service role, so it doesn't depend on the
+// mobile role's RLS update rights or the app staying open. Pass partId to have
+// it applied automatically. photoUrls is an array of all the part's photos.
+export async function assessPartFromUrls(photoUrls, car, storeId, opts = {}) {
   const { data: { session } } = await sb.auth.getSession()
   const res = await fetch(EDGE_FN, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
     body: JSON.stringify({
-      storeId, photoUrl, car, categories: CATEGORY_NAMES,
+      storeId, photoUrls, car, categories: CATEGORY_NAMES,
       partId: opts.partId, existingTitle: opts.existingTitle, existingPrice: opts.existingPrice,
     }),
   })

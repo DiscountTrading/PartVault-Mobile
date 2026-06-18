@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
-import { assessPartFromUrl } from '../lib/ai'
+import { assessPartFromUrls } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
@@ -119,7 +119,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
       // back at the office. The edge function writes the result back to the part
       // itself (service role), so this is fire-and-forget — no client update.
       if (aiAssess && uploaded[0]?.url && data?.id) {
-        assessPartFromUrl(uploaded[0].url, car, storeId, {
+        assessPartFromUrls(uploaded.map(p => p.url), car, storeId, {
           partId: data.id, existingTitle: form.title, existingPrice: +form.list_price || 0,
         }).catch(e => console.warn('AI assess failed', e))
       }
