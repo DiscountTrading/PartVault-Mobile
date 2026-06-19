@@ -96,6 +96,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         notes: form.notes,
         status: 'in_stock',
         source: 'manual',
+        acquired_date: new Date().toISOString().slice(0, 10),
         photos: uploaded.map(p => ({ url: p.url })),
         make: car.make || '',
         model: car.model || '',
