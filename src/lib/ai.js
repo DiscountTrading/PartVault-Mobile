@@ -13,6 +13,10 @@ export async function assessPartFromUrls(photoUrls, car, storeId, opts = {}) {
   const { data: { session } } = await sb.auth.getSession()
   const res = await fetch(EDGE_FN, {
     method: 'POST',
+    // keepalive lets the request finish even though the screen navigates away
+    // right after Save (otherwise the browser can cancel the in-flight request
+    // and the part keeps its insert defaults — no assessment).
+    keepalive: true,
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
     body: JSON.stringify({
       storeId, photoUrls, car, carId: car?.id, categories: CATEGORY_NAMES,
