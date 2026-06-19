@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
-import { assessPartFromUrls } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
@@ -103,6 +102,9 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         year: car.year || '',
         costs: { acquisition: 0, labour: 0, storage: 0, packaging: 0, postage: 0, holding: 0 },
         ai_assessed: false,
+        // Opt this capture into server-side AI assessment. A database trigger
+        // picks it up and runs it — reliable even if the phone drops off.
+        ai_pending: aiAssess,
       }).select().single()
       if (error) throw error
       // Dual-write: also insert into the new photos table (the source of truth)
@@ -115,14 +117,8 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         )
         if (photoErr) console.warn('photos table insert failed', photoErr)
       }
-      // Kick off AI assessment in the background so it's ready by the time you're
-      // back at the office. The edge function writes the result back to the part
-      // itself (service role), so this is fire-and-forget — no client update.
-      if (aiAssess && uploaded[0]?.url && data?.id) {
-        assessPartFromUrls(uploaded.map(p => p.url), car, storeId, {
-          partId: data.id, existingTitle: form.title, existingPrice: +form.list_price || 0,
-        }).catch(e => console.warn('AI assess failed', e))
-      }
+      // AI assessment now runs server-side via a database trigger (see the
+      // ai_pending flag above) — no fragile phone-side request to keep alive.
       onSave(data)
     } catch (e) {
       setError(e.message)
