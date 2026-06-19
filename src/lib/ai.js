@@ -9,6 +9,19 @@ const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ai-assess
 // the result server-side with the service role, so it doesn't depend on the
 // mobile role's RLS update rights or the app staying open. Pass partId to have
 // it applied automatically. photoUrls is an array of all the part's photos.
+// Identify a car's make/model/year from its photos (replaces VIN lookup).
+export async function identifyCar(photoUrls, storeId) {
+  const { data: { session } } = await sb.auth.getSession()
+  const res = await fetch(EDGE_FN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify({ storeId, mode: 'identify-car', photoUrls }),
+  })
+  const d = await res.json()
+  if (!res.ok || d.error) throw new Error(d.error || 'Could not identify the car')
+  return d.result
+}
+
 export async function assessPartFromUrls(photoUrls, car, storeId, opts = {}) {
   const { data: { session } } = await sb.auth.getSession()
   const res = await fetch(EDGE_FN, {

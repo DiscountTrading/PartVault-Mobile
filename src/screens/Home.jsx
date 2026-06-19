@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { C, MAKES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
+import { identifyCar } from '../lib/ai'
 
 const MAX_CAR_PHOTOS = 8
 
@@ -15,24 +16,26 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
   const [search, setSearch] = useState('')
   const [carPhotos, setCarPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
   const carFileRef = useRef()
-  const [vin, setVin] = useState('')
-  const [vinLooking, setVinLooking] = useState(false)
-  const [vinMsg, setVinMsg] = useState('')
+  const [identifying, setIdentifying] = useState(false)
+  const [idMsg, setIdMsg] = useState('')
 
-  // Decode a VIN to prefill make/model/year via NHTSA's free vPIC API (no key).
-  const lookupVin = async () => {
-    const v = vin.trim()
-    if (v.length < 11) { setVinMsg('Enter a full VIN'); return }
-    setVinLooking(true); setVinMsg('')
+  // Identify make/model/year from the car photos via AI (replaces VIN lookup).
+  const identifyFromPhotos = async () => {
+    const urls = carPhotos.filter(p => p.url).map(p => p.url)
+    if (!urls.length) { setIdMsg('Add a car photo first'); return }
+    setIdentifying(true); setIdMsg('')
     try {
-      const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${encodeURIComponent(v)}?format=json`)
-      const r = (await res.json())?.Results?.[0] || {}
-      const make = r.Make ? r.Make.charAt(0) + r.Make.slice(1).toLowerCase() : ''
-      if (!make) { setVinMsg('No match for that VIN'); setVinLooking(false); return }
-      setForm(f => ({ ...f, make: make || f.make, model: r.Model || f.model, year: r.ModelYear || f.year }))
-      setVinMsg(`✓ ${[make, r.Model, r.ModelYear].filter(Boolean).join(' ')}`)
-    } catch { setVinMsg('Lookup failed — enter details manually') }
-    setVinLooking(false)
+      const r = await identifyCar(urls, storeId)
+      if (!r.make && !r.model) { setIdMsg('Could not identify — enter manually'); setIdentifying(false); return }
+      setForm(f => ({
+        ...f,
+        make: MAKES.includes(r.make) ? r.make : f.make,
+        model: r.model || f.model,
+        year: r.year || f.year,
+      }))
+      setIdMsg(`✓ ${[r.make, r.model, r.year].filter(Boolean).join(' ')}${r.confidence === 'low' ? ' (low confidence — please check)' : ''}`)
+    } catch (e) { setIdMsg(e.message || 'Identify failed') }
+    setIdentifying(false)
   }
 
   const load = async () => {
@@ -73,7 +76,7 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
   }
   const removeCarPhoto = (id) => setCarPhotos(p => p.filter(x => x.id !== id))
   const carUploading = carPhotos.some(p => p.uploading)
-  const closeAddCar = () => { setShowAdd(false); setForm({ make: '', model: '', year: '', purchase_price: '' }); setCarPhotos([]); setVin(''); setVinMsg('') }
+  const closeAddCar = () => { setShowAdd(false); setForm({ make: '', model: '', year: '', purchase_price: '' }); setCarPhotos([]); setIdMsg('') }
 
   const addCar = async () => {
     if (!form.make) return
@@ -178,16 +181,6 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
           <div style={{ background: C.card, borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 20 }}>Add Car</div>
 
-            {/* VIN lookup (free NHTSA decode) — prefills make / model / year */}
-            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>VIN (optional — auto-fills details)</label>
-            <div style={{ display: 'flex', gap: 8, marginBottom: vinMsg ? 4 : 14 }}>
-              <input value={vin} onChange={e => setVin(e.target.value.toUpperCase())} placeholder="17-character VIN"
-                style={{ flex: 1, padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 15, boxSizing: 'border-box', outline: 'none', fontFamily: 'monospace' }} />
-              <button onClick={lookupVin} disabled={vinLooking}
-                style={{ padding: '0 16px', background: C.text, color: '#fff', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', opacity: vinLooking ? 0.6 : 1 }}>{vinLooking ? '…' : 'Look up'}</button>
-            </div>
-            {vinMsg && <div style={{ fontSize: 11, color: vinMsg.startsWith('✓') ? C.green : C.red, marginBottom: 12 }}>{vinMsg}</div>}
-
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Make *</label>
             <select value={form.make} onChange={e => setForm(f => ({ ...f, make: e.target.value }))}
               style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', background: '#fff' }}>
@@ -227,6 +220,13 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
                 <button onClick={() => carFileRef.current?.click()} style={{ aspectRatio: '1', background: '#fff', border: `2px dashed ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 22 }}>📷</button>
               )}
             </div>
+
+            {/* AI identify make/model/year from the car photos (replaces VIN lookup) */}
+            <button onClick={identifyFromPhotos} disabled={identifying || carUploading || !carPhotos.some(p => p.url)}
+              style={{ width: '100%', padding: 12, background: '#fff', border: `1.5px solid #7c3aed`, color: '#7c3aed', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: idMsg ? 6 : 20, opacity: (identifying || carUploading || !carPhotos.some(p => p.url)) ? 0.5 : 1 }}>
+              {identifying ? '⏳ Identifying…' : '✨ Identify car from photos'}
+            </button>
+            {idMsg && <div style={{ fontSize: 11, color: idMsg.startsWith('✓') ? C.green : C.red, marginBottom: 16 }}>{idMsg}</div>}
 
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={closeAddCar} style={{ flex: 1, padding: 14, background: '#fff', border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
