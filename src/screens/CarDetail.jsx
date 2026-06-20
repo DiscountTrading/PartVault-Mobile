@@ -68,6 +68,18 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
     setCompletingCar(false)
   }
 
+  // Show "Assessing…" only while genuinely in progress and recent — so a failed
+  // or missed assessment never spins forever.
+  const isAssessing = (p) => p.ai_pending && !p.ai_assessed && (Date.now() - new Date(p.created_at).getTime() < 120000)
+  const anyAssessing = parts.some(isAssessing)
+
+  // Poll while anything is still assessing, in case realtime misses the update.
+  useEffect(() => {
+    if (!anyAssessing) return
+    const t = setInterval(load, 4000)
+    return () => clearInterval(t)
+  }, [anyAssessing])
+
   const inStock = parts.filter(p => p.status === 'in_stock')
   const listed  = parts.filter(p => p.status === 'listed')
 
@@ -122,7 +134,7 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
                   )}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  {p.ai_pending && !p.ai_assessed
+                  {isAssessing(p)
                     ? <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>✨ Assessing…</div>
                     : <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>${p.list_price}</div>}
                   <div style={{ fontSize: 11, fontWeight: 600, color: statusColor, marginTop: 2 }}>{STATUS_LABELS[p.status] || p.status}</div>
