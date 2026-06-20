@@ -71,6 +71,12 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
   const inStock = parts.filter(p => p.status === 'in_stock')
   const listed  = parts.filter(p => p.status === 'listed')
 
+  // The car's purchase price spread across its parts, proportional to sale price.
+  // Each part's share drops as more parts are added — visible live here.
+  const carPrice = +car.purchase_price || 0
+  const partsValue = parts.reduce((a, p) => a + (+p.list_price || 0), 0)
+  const carShareOf = (p) => (carPrice > 0 && partsValue > 0) ? carPrice * ((+p.list_price || 0) / partsValue) : 0
+
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
       {/* Header */}
@@ -111,6 +117,9 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{p.category}</div>
+                  {carPrice > 0 && (+p.list_price > 0) && (
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Car cost: <strong style={{ color: C.text }}>${carShareOf(p).toFixed(2)}</strong></div>
+                  )}
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   {p.ai_pending && !p.ai_assessed
