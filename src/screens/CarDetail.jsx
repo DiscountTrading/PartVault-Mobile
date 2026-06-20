@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
-import { C } from '../lib/constants'
+import { C, CATEGORY_NAMES } from '../lib/constants'
 
 const STATUS_COLORS = { in_stock: C.blue, listed: C.accent, sold: C.green, scrapped: C.muted }
 const STATUS_LABELS = { in_stock: 'In Stock', listed: 'Listed', sold: 'Sold', scrapped: 'Scrapped' }
@@ -11,6 +11,28 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
   const [completingCar, setCompletingCar] = useState(false)
   const [confirmComplete, setConfirmComplete] = useState(false)
   const [carStatus, setCarStatus] = useState(car.status || 'active')
+  const [editPart, setEditPart] = useState(null)   // the part being edited
+  const [editForm, setEditForm] = useState(null)
+  const [savingPart, setSavingPart] = useState(false)
+
+  const openEdit = (p) => {
+    setEditPart(p)
+    setEditForm({ title: p.title || '', list_price: p.list_price ?? '', category: p.category || '', cost: p.costs?.acquisition ?? '' })
+  }
+  const savePart = async () => {
+    if (!editPart) return
+    setSavingPart(true)
+    const { error } = await sb.from('parts').update({
+      title: editForm.title,
+      list_price: +editForm.list_price || 0,
+      category: editForm.category,
+      costs: { ...(editPart.costs || {}), acquisition: +editForm.cost || 0 },
+    }).eq('id', editPart.id)
+    setSavingPart(false)
+    if (error) { alert(`Could not save: ${error.message}`); return }
+    setEditPart(null); setEditForm(null)
+    load()
+  }
 
   const load = async () => {
     setLoading(true)
@@ -81,7 +103,7 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
             const statusColor = STATUS_COLORS[p.status] || C.muted
             const thumb = p.photos?.[0]?.url || p.photos?.[0]?.ebay_url
             return (
-              <div key={p.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div key={p.id} onClick={() => openEdit(p)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}>
                 {thumb
                   ? <img src={thumb} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
                   : <div style={{ width: 56, height: 56, background: C.bg, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🔧</div>
@@ -126,6 +148,50 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
           </button>
         )}
       </div>
+
+      {/* Edit a part — quick yard corrections (name, price, cost, category) */}
+      {editPart && editForm && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'flex-end' }} onClick={() => { setEditPart(null); setEditForm(null) }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: C.card, borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 16 }}>Edit part</div>
+
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Name</label>
+            <input value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))}
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+              <div>
+                <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Sale price</label>
+                <input value={editForm.list_price} onChange={e => setEditForm(f => ({ ...f, list_price: e.target.value }))}
+                  type="number" inputMode="decimal" placeholder="$"
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Cost base</label>
+                <input value={editForm.cost} onChange={e => setEditForm(f => ({ ...f, cost: e.target.value }))}
+                  type="number" inputMode="decimal" placeholder="$"
+                  style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
+              </div>
+            </div>
+
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Category</label>
+            <select value={editForm.category} onChange={e => setEditForm(f => ({ ...f, category: e.target.value }))}
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 20, boxSizing: 'border-box', background: '#fff' }}>
+              <option value="">— Select —</option>
+              {CATEGORY_NAMES.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>Full details (description, specifics, fitment) are done in the admin app.</div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => { setEditPart(null); setEditForm(null) }} style={{ flex: 1, padding: 14, background: '#fff', border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={savePart} disabled={savingPart} style={{ flex: 2, padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: savingPart ? 0.6 : 1 }}>
+                {savingPart ? 'Saving…' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm completion — prevents an accidental tap from archiving the car */}
       {confirmComplete && (

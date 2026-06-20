@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
+import { suggestName } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
@@ -15,9 +16,24 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [error, setError] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [editing, setEditing] = useState(null) // { id, source }
+  const [namingAI, setNamingAI] = useState(false)
   const fileRef = useRef()
+  const nameTried = useRef(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Background: once the first photo is up, pre-fill an editable product name.
+  const tryName = async (url) => {
+    if (nameTried.current || !url) return
+    nameTried.current = true
+    setNamingAI(true)
+    try {
+      const t = await suggestName([url], car, storeId)
+      // Only fill if the user hasn't typed a name themselves.
+      setForm(f => f.title?.trim() ? f : { ...f, title: t || f.title })
+    } catch { /* best effort — user can type the name */ }
+    setNamingAI(false)
+  }
 
   // Compress to a main (~1600px) + thumb (~320px) and upload both.
   const uploadOne = async (file) => {
@@ -42,6 +58,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
     try {
       const { url, thumb_url } = await uploadOne(file)
       setPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
+      if (aiAssess) tryName(url)
     } catch (err) {
       setError(err.message)
       setPhotos(p => p.filter(x => x.id !== id))
@@ -165,11 +182,13 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         </div>
 
         {/* Quick reference label */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Quick label *</label>
-        <input value={form.title} onChange={e => set('title', e.target.value)}
-          placeholder={`e.g. ${car.make} ${car.model} headlight`}
+        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>
+          Part name * {namingAI && <span style={{ color: '#7c3aed', fontWeight: 600 }}>· ✨ naming…</span>}
+        </label>
+        <input value={form.title} onChange={e => { nameTried.current = true; set('title', e.target.value) }}
+          placeholder={namingAI ? 'AI is naming this part…' : `e.g. ${car.make} ${car.model} headlight`}
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 4, boxSizing: 'border-box', outline: 'none' }} />
-        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>Just for you to find it — AI writes the full eBay title before listing.</div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>AI pre-fills this from the photo — edit it however you like.</div>
 
         {/* Price (optional) */}
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>List price (optional)</label>
