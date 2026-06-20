@@ -6,8 +6,33 @@ import Home from './screens/Home'
 import CarDetail from './screens/CarDetail'
 import AddPart from './screens/AddPart'
 import Account from './screens/Account'
+import { isEnabledFor, unlockBiometric } from './lib/biometric'
 
 const ACTIVE_KEY = 'pv_active_store'
+
+function LockScreen({ userId, email, onUnlock }) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const tryUnlock = async () => {
+    setBusy(true); setErr('')
+    try { await unlockBiometric(userId); onUnlock() }
+    catch { setErr('Face ID failed or was cancelled. Try again, or sign out.') }
+    setBusy(false)
+  }
+  return (
+    <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+      <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 6 }}>PartVault is locked</div>
+      <div style={{ fontSize: 14, color: C.muted, marginBottom: 22 }}>{email}</div>
+      <button onClick={tryUnlock} disabled={busy}
+        style={{ padding: '14px 28px', background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
+        {busy ? 'Unlocking…' : '🔓 Unlock with Face ID'}
+      </button>
+      {err && <div style={{ color: C.red, fontSize: 13, marginTop: 14, textAlign: 'center', maxWidth: 280 }}>{err}</div>}
+      <button onClick={() => sb.auth.signOut()} style={{ marginTop: 18, background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer' }}>Sign out instead</button>
+    </div>
+  )
+}
 
 function JoinStore({ onJoined }) {
   const [code, setCode] = useState('')
@@ -84,6 +109,7 @@ export default function App() {
   const [screen, setScreen] = useState('list')     // within Cars: 'list' | 'car-detail' | 'add-part'
   const [selectedCar, setSelectedCar] = useState(null)
   const [initError, setInitError] = useState(null)
+  const [locked, setLocked] = useState(false)
 
   // Name this window so the admin's "Field App" link returns to this tab
   useEffect(() => { window.name = 'partvault-app' }, [])
@@ -92,15 +118,26 @@ export default function App() {
     sb.auth.getSession().then(({ data: { session }, error }) => {
       if (error) { setInitError(error.message); return }
       setSession(session)
-      if (session) loadStores()
+      if (session) { loadStores(); if (isEnabledFor(session.user.id)) setLocked(true) }
     }).catch(e => setInitError(e.message))
-    const { data: { subscription } } = sb.auth.onAuthStateChange((_e, session) => {
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
       setSession(session)
-      if (session) loadStores()
-      else { setStores([]); setActiveStoreId(null); setStoresLoaded(false); setTab('cars'); setScreen('list') }
+      if (session) {
+        loadStores()
+        // Lock on a restored session (app re-open); a fresh sign-in unlocks.
+        if (event === 'INITIAL_SESSION' && isEnabledFor(session.user.id)) setLocked(true)
+        if (event === 'SIGNED_IN') setLocked(false)
+      } else { setStores([]); setActiveStoreId(null); setStoresLoaded(false); setTab('cars'); setScreen('list'); setLocked(false) }
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  // Re-lock when the app is sent to the background, so returning needs Face ID.
+  useEffect(() => {
+    const onHide = () => { if (document.hidden && session && isEnabledFor(session.user.id)) setLocked(true) }
+    document.addEventListener('visibilitychange', onHide)
+    return () => document.removeEventListener('visibilitychange', onHide)
+  }, [session])
 
   // All stores this user can access — same source as the admin switcher, so a
   // store created in the admin appears here automatically.
@@ -142,6 +179,8 @@ export default function App() {
 
   if (!session) return <><DesktopNotice /><Login /></>
 
+  if (locked) return <LockScreen userId={session.user.id} email={session.user?.email} onUnlock={() => setLocked(false)} />
+
   if (!storesLoaded) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
       Loading…
@@ -158,7 +197,7 @@ export default function App() {
     <div>
       <DesktopNotice />
       {tab === 'account' ? (
-        <Account email={session.user?.email} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} />
+        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} />
       ) : screen === 'add-part' ? (
         <AddPart
           car={selectedCar}

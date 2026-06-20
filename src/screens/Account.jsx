@@ -1,8 +1,22 @@
+import { useState } from 'react'
 import { sb } from '../lib/supabase'
 import { C } from '../lib/constants'
+import { biometricSupported, isEnabledFor, enableBiometric, disableBiometric } from '../lib/biometric'
 
-export default function Account({ email, stores = [], activeStoreId, setActiveStore }) {
+export default function Account({ email, userId, stores = [], activeStoreId, setActiveStore }) {
   const active = stores.find(s => s.store_id === activeStoreId)
+  const [bioOn, setBioOn] = useState(() => !!userId && isEnabledFor(userId))
+  const [bioBusy, setBioBusy] = useState(false)
+  const [bioErr, setBioErr] = useState('')
+
+  const toggleBio = async () => {
+    setBioErr(''); setBioBusy(true)
+    try {
+      if (bioOn) { disableBiometric(); setBioOn(false) }
+      else { await enableBiometric(userId, email); setBioOn(true) }
+    } catch (e) { setBioErr(e?.message || 'Face ID setup failed') }
+    setBioBusy(false)
+  }
 
   const labelStyle = { fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }
   const cardStyle = { background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }
@@ -42,6 +56,24 @@ export default function Account({ email, stores = [], activeStoreId, setActiveSt
             🖥️ Open Admin Panel ↗
           </a>
         </div>
+
+        {/* Face ID app lock */}
+        {biometricSupported() && (
+          <div style={{ marginTop: 22 }}>
+            <label style={labelStyle}>Security</label>
+            <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 15, color: C.text, fontWeight: 600 }}>🔒 Face ID unlock</div>
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{bioOn ? 'On — Face ID is required to open the app.' : 'Require Face ID to open the app on this device.'}</div>
+              </div>
+              <button onClick={toggleBio} disabled={bioBusy || !userId}
+                style={{ padding: '9px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: bioOn ? '#fff' : C.accent, color: bioOn ? C.red : '#fff', boxShadow: bioOn ? `inset 0 0 0 1.5px ${C.border}` : 'none', opacity: bioBusy ? 0.6 : 1 }}>
+                {bioBusy ? '…' : bioOn ? 'Turn off' : 'Turn on'}
+              </button>
+            </div>
+            {bioErr && <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>{bioErr}</div>}
+          </div>
+        )}
 
         <button onClick={() => sb.auth.signOut()}
           style={{ marginTop: 24, width: '100%', padding: 14, background: '#fff', color: C.red, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
