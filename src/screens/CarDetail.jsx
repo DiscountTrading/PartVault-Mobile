@@ -19,7 +19,17 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [car.id])
+  // Reload on mount, when returning to the app, and live via realtime — so the
+  // server-side AI assessment (price/title/category) appears within seconds.
+  useEffect(() => {
+    load()
+    const ch = sb.channel(`car-parts-${car.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'parts', filter: `car_id=eq.${car.id}` }, load)
+      .subscribe()
+    const onVisible = () => { if (!document.hidden) load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { sb.removeChannel(ch); document.removeEventListener('visibilitychange', onVisible) }
+  }, [car.id])
 
   const completeCar = async () => {
     setCompletingCar(true)
@@ -81,7 +91,9 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
                   <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{p.category}</div>
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>${p.list_price}</div>
+                  {p.ai_pending && !p.ai_assessed
+                    ? <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>✨ Assessing…</div>
+                    : <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>${p.list_price}</div>}
                   <div style={{ fontSize: 11, fontWeight: 600, color: statusColor, marginTop: 2 }}>{STATUS_LABELS[p.status] || p.status}</div>
                 </div>
               </div>
