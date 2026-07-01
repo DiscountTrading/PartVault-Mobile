@@ -84,12 +84,12 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 2000 }}>
-      <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', filter: filterCss, transform: `scale(${adj.zoom})`, transformOrigin: 'center' }} />
+      {/* Fixed square viewport — never changes size. The image zooms INSIDE it
+          (video is clipped to the square), matching eBay's square photo format. */}
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '100vw', maxWidth: '100vh', maxHeight: '100vh', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.65)', boxSizing: 'border-box', background: '#000' }}>
+        <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', filter: filterCss, transform: `scale(${adj.zoom})`, transformOrigin: 'center' }} />
+      </div>
       {flash && <div style={{ position: 'absolute', inset: 0, background: '#fff', opacity: 0.7 }} />}
-
-      {/* Square framing guide — everything outside the square is dimmed. Only the
-          centred square is captured (eBay format). */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '100vw', maxHeight: '100vh', border: '2px solid rgba(255,255,255,0.65)', boxShadow: '0 0 0 100vh rgba(0,0,0,0.45)', boxSizing: 'border-box', pointerEvents: 'none' }} />
       <div style={{ position: 'absolute', top: 'calc(50px + env(safe-area-inset-top))', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 600, pointerEvents: 'none' }}>◻︎ Square · eBay format</div>
 
       {/* Top bar */}
