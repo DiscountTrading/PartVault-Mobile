@@ -28,13 +28,17 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     return () => { active = false; streamRef.current?.getTracks().forEach(t => t.stop()) }
   }, [facing])
 
+  // Capture a centred SQUARE crop (eBay's photo format) from the live frame.
   const grabBlob = () => new Promise((resolve) => {
     const v = videoRef.current
     if (!v || !v.videoWidth) return resolve(null)
+    const vw = v.videoWidth, vh = v.videoHeight
+    const side = Math.min(vw, vh)                 // largest centred square in the frame
+    const sx = (vw - side) / 2, sy = (vh - side) / 2
+    const out = Math.min(side, 1600)             // cap the long edge
     const canvas = document.createElement('canvas')
-    canvas.width = v.videoWidth
-    canvas.height = v.videoHeight
-    canvas.getContext('2d').drawImage(v, 0, 0)
+    canvas.width = out; canvas.height = out
+    canvas.getContext('2d').drawImage(v, sx, sy, side, side, 0, 0, out, out)
     canvas.toBlob(b => resolve(b), 'image/jpeg', 0.9)
   })
 
@@ -66,6 +70,11 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 2000 }}>
       <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       {flash && <div style={{ position: 'absolute', inset: 0, background: '#fff', opacity: 0.7 }} />}
+
+      {/* Square framing guide — everything outside the square is dimmed. Only the
+          centred square is captured (eBay format). */}
+      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '100vw', maxHeight: '100vh', border: '2px solid rgba(255,255,255,0.65)', boxShadow: '0 0 0 100vh rgba(0,0,0,0.45)', boxSizing: 'border-box', pointerEvents: 'none' }} />
+      <div style={{ position: 'absolute', top: 'calc(50px + env(safe-area-inset-top))', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 600, pointerEvents: 'none' }}>◻︎ Square · eBay format</div>
 
       {/* Top bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
