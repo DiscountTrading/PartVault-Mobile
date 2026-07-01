@@ -1,6 +1,9 @@
 import { useRef, useEffect, useState } from 'react'
 import { C } from '../lib/constants'
 
+const ADJUST_KEY = 'pv_cam_adjust'
+const DEFAULTS = { zoom: 1, brightness: 1, contrast: 1, saturate: 1 }
+
 // Full-screen continuous camera: live preview, tap shutter to snap frame after
 // frame with no re-opening. Each snap fires onCapture(blob) immediately and the
 // camera stays live — built for fast yard capture. Optional confirm step.
@@ -11,6 +14,15 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
   const [facing, setFacing] = useState('environment')
   const [flash, setFlash] = useState(false)
   const [pending, setPending] = useState(null) // { url, blob } when confirm mode
+  // Live camera adjustments (persisted → act as the user's "standard" settings).
+  const [adj, setAdj] = useState(() => {
+    try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(ADJUST_KEY) || '{}') } } catch { return { ...DEFAULTS } }
+  })
+  const [showAdjust, setShowAdjust] = useState(false)
+  useEffect(() => { try { localStorage.setItem(ADJUST_KEY, JSON.stringify(adj)) } catch { /* ignore */ } }, [adj])
+  const filterCss = `brightness(${adj.brightness}) contrast(${adj.contrast}) saturate(${adj.saturate})`
+  const setA = (k, v) => setAdj(a => ({ ...a, [k]: +v }))
+  const resetAdj = () => setAdj({ ...DEFAULTS })
 
   useEffect(() => {
     let active = true
@@ -28,17 +40,21 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     return () => { active = false; streamRef.current?.getTracks().forEach(t => t.stop()) }
   }, [facing])
 
-  // Capture a centred SQUARE crop (eBay's photo format) from the live frame.
+  // Capture a centred SQUARE crop (eBay's photo format), with digital zoom and the
+  // brightness/contrast/colour adjustments baked in so the file matches the preview.
   const grabBlob = () => new Promise((resolve) => {
     const v = videoRef.current
     if (!v || !v.videoWidth) return resolve(null)
     const vw = v.videoWidth, vh = v.videoHeight
-    const side = Math.min(vw, vh)                 // largest centred square in the frame
+    const base = Math.min(vw, vh)                 // largest centred square in the frame
+    const side = base / (adj.zoom || 1)          // digital zoom = tighter centre crop
     const sx = (vw - side) / 2, sy = (vh - side) / 2
-    const out = Math.min(side, 1600)             // cap the long edge
+    const out = Math.min(base, 1600)             // cap the long edge
     const canvas = document.createElement('canvas')
     canvas.width = out; canvas.height = out
-    canvas.getContext('2d').drawImage(v, sx, sy, side, side, 0, 0, out, out)
+    const ctx = canvas.getContext('2d')
+    try { ctx.filter = filterCss } catch { /* filter unsupported → preview still shows it */ }
+    ctx.drawImage(v, sx, sy, side, side, 0, 0, out, out)
     canvas.toBlob(b => resolve(b), 'image/jpeg', 0.9)
   })
 
@@ -68,7 +84,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 2000 }}>
-      <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', filter: filterCss, transform: `scale(${adj.zoom})`, transformOrigin: 'center' }} />
       {flash && <div style={{ position: 'absolute', inset: 0, background: '#fff', opacity: 0.7 }} />}
 
       {/* Square framing guide — everything outside the square is dimmed. Only the
@@ -80,8 +96,33 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
         <button onClick={onClose} style={btn}>✓ Done {count > 0 ? `(${count})` : ''}</button>
         <div style={{ color: '#fff', background: 'rgba(0,0,0,0.55)', borderRadius: 22, padding: '8px 16px', fontWeight: 800 }}>{count}/{max}</div>
-        <button onClick={() => setFacing(f => f === 'environment' ? 'user' : 'environment')} style={btn}>⟲ Flip</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setShowAdjust(s => !s)} style={{ ...btn, background: showAdjust ? C.accent : 'rgba(0,0,0,0.55)' }}>⚙︎ Adjust</button>
+          <button onClick={() => setFacing(f => f === 'environment' ? 'user' : 'environment')} style={btn}>⟲ Flip</button>
+        </div>
       </div>
+
+      {/* Adjustment sliders (zoom / brightness / contrast / colour) — saved as default */}
+      {showAdjust && (
+        <div style={{ position: 'absolute', bottom: 148, left: 12, right: 12, background: 'rgba(0,0,0,0.62)', borderRadius: 14, padding: '12px 14px' }}>
+          {[
+            ['Zoom', 'zoom', 1, 5, 0.1],
+            ['Brightness', 'brightness', 0.5, 1.8, 0.05],
+            ['Contrast', 'contrast', 0.5, 1.8, 0.05],
+            ['Colour', 'saturate', 0, 2, 0.05],
+          ].map(([label, key, min, max, step]) => (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{ color: '#fff', fontSize: 12, width: 78 }}>{label}</span>
+              <input type="range" min={min} max={max} step={step} value={adj[key]}
+                onChange={e => setA(key, e.target.value)} style={{ flex: 1, accentColor: C.accent }} />
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>✓ Saved as your default</span>
+            <button onClick={resetAdj} style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Reset</button>
+          </div>
+        </div>
+      )}
 
       {/* Recent thumbnails */}
       {recentThumbs.length > 0 && (
