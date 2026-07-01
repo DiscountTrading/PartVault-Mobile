@@ -16,6 +16,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [error, setError] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const [editing, setEditing] = useState(null) // { id, source }
+  const [pnId, setPnId] = useState(null)        // photo tagged as the part-number shot
   const [namingAI, setNamingAI] = useState(false)
   const fileRef = useRef()
   const nameTried = useRef(false)
@@ -71,7 +72,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
     files.slice(0, Math.max(0, MAX_PHOTOS - photos.length)).forEach(ingest)
   }
 
-  const removePhoto = (id) => setPhotos(p => p.filter(x => x.id !== id))
+  const removePhoto = (id) => { setPhotos(p => p.filter(x => x.id !== id)); setPnId(cur => cur === id ? null : cur) }
   const anyUploading = photos.some(p => p.uploading)
 
   // Save an edited photo: replace the original in place (re-upload).
@@ -114,7 +115,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         status: 'in_stock',
         source: 'manual',
         acquired_date: new Date().toISOString().slice(0, 10),
-        photos: uploaded.map(p => ({ url: p.url })),
+        photos: uploaded.map(p => ({ url: p.url, ...(p.id === pnId ? { part_number: true } : {}) })),
         make: car.make || '',
         model: car.model || '',
         year: car.year || '',
@@ -158,7 +159,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
           <input ref={fileRef} type="file" accept="image/*" multiple onChange={addPhotos} style={{ display: 'none' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Photos {photos.length > 0 && `(${photos.length}/${MAX_PHOTOS})`}</label>
-            {photos.length > 0 && <span style={{ fontSize: 11, color: C.muted }}>First = main image</span>}
+            {photos.length > 0 && <span style={{ fontSize: 11, color: C.muted }}>First = main · # = part number</span>}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {photos.map((p, i) => (
@@ -166,8 +167,11 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
                 <img src={p.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1 }} />
                 {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.3)' }}>⏳</div>}
                 {i === 0 && !p.uploading && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: C.accent, color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>MAIN</div>}
+                {pnId === p.id && !p.uploading && <div style={{ position: 'absolute', bottom: i === 0 ? 18 : 0, left: 0, right: 0, background: '#2563eb', color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>PART #</div>}
                 <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>×</button>
                 {!p.uploading && <button onClick={() => setEditing({ id: p.id, source: p.preview })} style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>✎</button>}
+                {!p.uploading && <button onClick={() => setPnId(cur => cur === p.id ? null : p.id)} title="Tag as the part-number photo"
+                  style={{ position: 'absolute', bottom: 4, right: 4, background: pnId === p.id ? '#2563eb' : 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>#</button>}
               </div>
             ))}
           </div>
