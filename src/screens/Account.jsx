@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { sb } from '../lib/supabase'
-import { C } from '../lib/constants'
+import { C, APP_VERSION } from '../lib/constants'
 import { biometricSupported, isEnabledFor, enableBiometric, disableBiometric } from '../lib/biometric'
 
 export default function Account({ email, userId, stores = [], activeStoreId, setActiveStore }) {
@@ -8,6 +8,25 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
   const [bioOn, setBioOn] = useState(() => !!userId && isEnabledFor(userId))
   const [bioBusy, setBioBusy] = useState(false)
   const [bioErr, setBioErr] = useState('')
+
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Force-refresh: clear any cached app shell and reload the latest deployed build.
+  // (This is a website, so a cache-busting reload is all that's needed.)
+  const forceRefresh = async () => {
+    setRefreshing(true)
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(regs.map(r => r.unregister()))
+      }
+      if (window.caches) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map(k => caches.delete(k)))
+      }
+    } catch { /* best effort */ }
+    window.location.replace(window.location.pathname + '?r=' + Date.now())
+  }
 
   const toggleBio = async () => {
     setBioErr(''); setBioBusy(true)
@@ -74,6 +93,21 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
             {bioErr && <div style={{ fontSize: 12, color: C.red, marginTop: 8 }}>{bioErr}</div>}
           </div>
         )}
+
+        {/* App version + force refresh */}
+        <div style={{ marginTop: 22 }}>
+          <label style={labelStyle}>App version</label>
+          <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 15, color: C.text, fontWeight: 600 }}>PartVault v{APP_VERSION}</div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>Tap refresh to make sure you're on the current version.</div>
+            </div>
+            <button onClick={forceRefresh} disabled={refreshing}
+              style={{ padding: '9px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: C.accent, color: '#fff', opacity: refreshing ? 0.6 : 1 }}>
+              {refreshing ? '…' : '🔄 Refresh'}
+            </button>
+          </div>
+        </div>
 
         <button onClick={() => sb.auth.signOut()}
           style={{ marginTop: 24, width: '100%', padding: 14, background: '#fff', color: C.red, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
