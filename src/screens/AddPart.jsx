@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb, toSmallBase64 } from '../lib/image'
-import { quickNameFromBase64 } from '../lib/ai'
+import { quickNameFromBase64, quickNameOptionsFromBase64 } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
@@ -17,6 +17,10 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [cameraOpen, setCameraOpen] = useState(false)
   const [editing, setEditing] = useState(null) // { id, source }
   const [pnId, setPnId] = useState(null)        // photo tagged as the part-number shot
+  const [nameOptions, setNameOptions] = useState([])
+  const [showNameOpts, setShowNameOpts] = useState(false)
+  const [nameOptsBusy, setNameOptsBusy] = useState(false)
+  const nameB64Ref = useRef(null)               // small inline image reused for name options
   const [namingAI, setNamingAI] = useState(false)
   const fileRef = useRef()
   const nameTried = useRef(false)
@@ -35,6 +39,17 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
     } catch { /* best effort — user can type the name */ }
     setNamingAI(false)
   }
+
+  // Tap-to-pick: fetch several name options from the first photo.
+  const showNameOptions = async () => {
+    const b64 = nameB64Ref.current
+    if (!b64) { setError('Add a photo first so AI can suggest names'); return }
+    setShowNameOpts(true); setNameOptsBusy(true); setError('')
+    try { setNameOptions(await quickNameOptionsFromBase64(b64, car, storeId, 5)) }
+    catch (e) { setError(e.message); setShowNameOpts(false) }
+    setNameOptsBusy(false)
+  }
+  const pickName = (t) => { nameTried.current = true; set('title', t); setShowNameOpts(false) }
 
   // Compress to a main (~1600px) + thumb (~320px) and upload both.
   const uploadOne = async (file) => {
@@ -56,9 +71,12 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const ingest = async (file) => {
     const id = Math.random().toString(36).slice(2)
     setPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
-    // Start naming immediately from a small inline image — in parallel with the
-    // upload — so the title appears without waiting for the photo to finish uploading.
-    if (aiAssess && !nameTried.current) toSmallBase64(file).then(tryName).catch(() => {})
+    // Small inline image for fast naming + on-demand name options. Naming starts
+    // immediately (parallel to the upload) so the title appears without waiting.
+    toSmallBase64(file).then(b => {
+      if (!nameB64Ref.current) nameB64Ref.current = b
+      if (aiAssess && !nameTried.current) tryName(b)
+    }).catch(() => {})
     try {
       const { url, thumb_url } = await uploadOne(file)
       setPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
@@ -188,13 +206,37 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         </div>
 
         {/* Quick reference label */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>
-          Part name * {namingAI && <span style={{ color: '#7c3aed', fontWeight: 600 }}>· ✨ naming…</span>}
-        </label>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <label style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>
+            Part name * {namingAI && <span style={{ color: '#7c3aed', fontWeight: 600 }}>· ✨ naming…</span>}
+          </label>
+          <button type="button" onClick={showNameOptions} disabled={nameOptsBusy}
+            style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, opacity: nameOptsBusy ? 0.6 : 1 }}>
+            {nameOptsBusy ? '✨ …' : '✨ Name options'}
+          </button>
+        </div>
         <input value={form.title} onChange={e => { nameTried.current = true; set('title', e.target.value) }}
+          onFocus={() => { if (nameB64Ref.current && !form.title?.trim() && !showNameOpts && !nameOptsBusy) showNameOptions() }}
           placeholder={namingAI ? 'AI is naming this part…' : `e.g. ${car.make} ${car.model} headlight`}
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 4, boxSizing: 'border-box', outline: 'none' }} />
-        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>AI pre-fills this from the photo — edit it however you like.</div>
+
+        {showNameOpts && (
+          <div style={{ border: `1px solid #ddd6fe`, background: '#f7f5ff', borderRadius: 8, padding: 8, marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, padding: '0 2px' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{nameOptsBusy ? 'Finding name options…' : 'Tap a name to use it'}</span>
+              <button type="button" onClick={() => setShowNameOpts(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>✕</button>
+            </div>
+            {nameOptsBusy && !nameOptions.length && <div style={{ fontSize: 12, color: C.muted, padding: '4px 6px' }}>⏳ Suggesting names…</div>}
+            {nameOptions.map((t, i) => (
+              <div key={i} onClick={() => pickName(t)}
+                style={{ cursor: 'pointer', background: '#fff', border: `1px solid ${form.title === t ? C.accent : C.border}`, borderRadius: 6, padding: '8px 10px', marginBottom: 6, fontSize: 14, lineHeight: 1.4, color: C.text }}>
+                {t}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>AI pre-fills this from the photo — tap ✨ Name options for alternatives, or edit it yourself.</div>
 
         {/* Price (optional) */}
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>List price (optional)</label>

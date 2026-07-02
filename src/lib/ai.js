@@ -37,6 +37,19 @@ export async function quickNameFromBase64(base64, car, storeId) {
   return d.title
 }
 
+// Several ranked name options from a small inline image — for tap-to-pick at capture.
+export async function quickNameOptionsFromBase64(base64, car, storeId, count = 5) {
+  const { data: { session } } = await sb.auth.getSession()
+  const res = await fetch(EDGE_FN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify({ storeId, mode: 'quick-name', photoBase64: base64, car, options: count }),
+  })
+  const d = await res.json()
+  if (!res.ok || d.error) throw new Error(d.error || 'Name options failed')
+  return Array.isArray(d.titles) ? d.titles : []
+}
+
 // Identify a car's make/model/year from its photos (replaces VIN lookup).
 export async function identifyCar(photoUrls, storeId) {
   const { data: { session } } = await sb.auth.getSession()
