@@ -28,3 +28,15 @@ export async function makeMainAndThumb(file) {
   const thumb = await resizeToBlob(file, 320, 0.7)
   return { main, thumb }
 }
+
+// A small base64 (no data: prefix) for fast AI naming — tiny image the model can
+// read quickly, sent inline so naming needn't wait for the upload.
+export async function toSmallBase64(file, maxDim = 512, quality = 0.72) {
+  const blob = await resizeToBlob(file, maxDim, quality)
+  return await new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(',')[1])
+    r.onerror = () => reject(new Error('Could not read image'))
+    r.readAsDataURL(blob)
+  })
+}

@@ -23,6 +23,20 @@ export async function suggestName(photoUrls, car, storeId) {
   return d.title
 }
 
+// Fast name from a small inline (base64) image — used at capture so the title
+// appears without waiting for the photo upload. Same quick-name mode (Haiku).
+export async function quickNameFromBase64(base64, car, storeId) {
+  const { data: { session } } = await sb.auth.getSession()
+  const res = await fetch(EDGE_FN, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+    body: JSON.stringify({ storeId, mode: 'quick-name', photoBase64: base64, car }),
+  })
+  const d = await res.json()
+  if (!res.ok || d.error) throw new Error(d.error || 'Name suggestion failed')
+  return d.title
+}
+
 // Identify a car's make/model/year from its photos (replaces VIN lookup).
 export async function identifyCar(photoUrls, storeId) {
   const { data: { session } } = await sb.auth.getSession()

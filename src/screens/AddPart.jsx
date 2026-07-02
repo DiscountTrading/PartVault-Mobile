@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
-import { makeMainAndThumb } from '../lib/image'
-import { suggestName } from '../lib/ai'
+import { makeMainAndThumb, toSmallBase64 } from '../lib/image'
+import { quickNameFromBase64 } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
@@ -23,13 +23,13 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  // Background: once the first photo is up, pre-fill an editable product name.
-  const tryName = async (url) => {
-    if (nameTried.current || !url) return
+  // Background: pre-fill an editable product name from a small inline image.
+  const tryName = async (base64) => {
+    if (nameTried.current || !base64) return
     nameTried.current = true
     setNamingAI(true)
     try {
-      const t = await suggestName([url], car, storeId)
+      const t = await quickNameFromBase64(base64, car, storeId)
       // Only fill if the user hasn't typed a name themselves.
       setForm(f => f.title?.trim() ? f : { ...f, title: t || f.title })
     } catch { /* best effort — user can type the name */ }
@@ -56,10 +56,12 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const ingest = async (file) => {
     const id = Math.random().toString(36).slice(2)
     setPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
+    // Start naming immediately from a small inline image — in parallel with the
+    // upload — so the title appears without waiting for the photo to finish uploading.
+    if (aiAssess && !nameTried.current) toSmallBase64(file).then(tryName).catch(() => {})
     try {
       const { url, thumb_url } = await uploadOne(file)
       setPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
-      if (aiAssess) tryName(url)
     } catch (err) {
       setError(err.message)
       setPhotos(p => p.filter(x => x.id !== id))
