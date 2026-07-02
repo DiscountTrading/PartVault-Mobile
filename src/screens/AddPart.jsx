@@ -4,6 +4,7 @@ import { C, CATEGORY_NAMES } from '../lib/constants'
 import { makeMainAndThumb, toSmallBase64 } from '../lib/image'
 import { quickNameFromBase64, quickNameOptionsFromBase64 } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
+import CameraAccessReminder from '../components/CameraAccessReminder'
 const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
 const MAX_PHOTOS = 24
@@ -171,6 +172,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
+      <CameraAccessReminder />
       {/* Header */}
       <div style={{ background: C.headerBg, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 10 }}>
         <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', fontSize: 22, cursor: 'pointer', padding: 0, lineHeight: 1 }}>‹</button>
