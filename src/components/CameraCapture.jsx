@@ -24,6 +24,37 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
   const setA = (k, v) => setAdj(a => ({ ...a, [k]: +v }))
   const resetAdj = () => setAdj({ ...DEFAULTS })
 
+  // Pinch-to-zoom the image inside the square (not the page). Listeners are
+  // non-passive so we can preventDefault the browser's page zoom.
+  const viewportRef = useRef(null)
+  const pinchRef = useRef(null)
+  const zoomRef = useRef(adj.zoom)
+  useEffect(() => { zoomRef.current = adj.zoom }, [adj.zoom])
+  useEffect(() => {
+    const el = viewportRef.current
+    if (!el) return
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+    const onStart = (e) => { if (e.touches.length === 2) { e.preventDefault(); pinchRef.current = { d: dist(e.touches) || 1, z: zoomRef.current } } }
+    const onMove = (e) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.preventDefault()
+        const z = Math.max(1, Math.min(5, +(pinchRef.current.z * (dist(e.touches) / pinchRef.current.d)).toFixed(2)))
+        setAdj(a => ({ ...a, zoom: z }))
+      }
+    }
+    const onEnd = (e) => { if (e.touches.length < 2) pinchRef.current = null }
+    el.addEventListener('touchstart', onStart, { passive: false })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd)
+    el.addEventListener('touchcancel', onEnd)
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onEnd)
+    }
+  }, [])
+
   useEffect(() => {
     let active = true
     async function start() {
@@ -86,7 +117,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 2000 }}>
       {/* Fixed square viewport — never changes size. The image zooms INSIDE it
           (video is clipped to the square), matching eBay's square photo format. */}
-      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '100vw', maxWidth: '100vh', maxHeight: '100vh', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.65)', boxSizing: 'border-box', background: '#000' }}>
+      <div ref={viewportRef} style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '100vw', maxWidth: '100vh', maxHeight: '100vh', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.65)', boxSizing: 'border-box', background: '#000', touchAction: 'none' }}>
         <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', filter: filterCss, transform: `scale(${adj.zoom})`, transformOrigin: 'center' }} />
       </div>
       {flash && <div style={{ position: 'absolute', inset: 0, background: '#fff', opacity: 0.7 }} />}
