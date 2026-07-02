@@ -21,6 +21,10 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [showNameOpts, setShowNameOpts] = useState(false)
   const [nameOptsBusy, setNameOptsBusy] = useState(false)
   const nameB64Ref = useRef(null)               // small inline image reused for name options
+  const camStreamRef = useRef(null)             // kept-alive camera stream (stopped on leave)
+
+  // Stop the camera when leaving Add Part (not each time the overlay closes).
+  useEffect(() => () => { camStreamRef.current?.getTracks().forEach(t => t.stop()) }, [])
   const [namingAI, setNamingAI] = useState(false)
   const fileRef = useRef()
   const nameTried = useRef(false)
@@ -274,6 +278,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
           count={photos.length}
           max={MAX_PHOTOS}
           recentThumbs={photos.map(p => p.preview)}
+          keepAliveRef={camStreamRef}
         />
       )}
 

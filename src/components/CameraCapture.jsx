@@ -7,7 +7,7 @@ const DEFAULTS = { zoom: 1, brightness: 1, contrast: 1, saturate: 1 }
 // Full-screen continuous camera: live preview, tap shutter to snap frame after
 // frame with no re-opening. Each snap fires onCapture(blob) immediately and the
 // camera stays live — built for fast yard capture. Optional confirm step.
-export default function CameraCapture({ onCapture, onClose, count = 0, max = 24, recentThumbs = [], confirm = false }) {
+export default function CameraCapture({ onCapture, onClose, count = 0, max = 24, recentThumbs = [], confirm = false, keepAliveRef = null }) {
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const [error, setError] = useState('')
@@ -59,8 +59,14 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     let active = true
     async function start() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false })
-        if (!active) { stream.getTracks().forEach(t => t.stop()); return }
+        // Reuse a kept-alive stream (parent-owned) so reopening the camera doesn't
+        // re-prompt / re-initialise. Only request access when we don't have one.
+        let stream = keepAliveRef?.current
+        if (!stream || !stream.active) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false })
+          if (keepAliveRef) keepAliveRef.current = stream
+        }
+        if (!active) { if (!keepAliveRef) stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
         if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => {}) }
       } catch (e) {
@@ -68,8 +74,17 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
       }
     }
     start()
-    return () => { active = false; streamRef.current?.getTracks().forEach(t => t.stop()) }
+    // Keep the stream alive when a parent owns it; only stop it here in legacy mode.
+    return () => { active = false; if (!keepAliveRef) streamRef.current?.getTracks().forEach(t => t.stop()) }
   }, [facing])
+
+  // Flip: drop the current stream so a new facing one is acquired.
+  const flip = () => {
+    (keepAliveRef?.current || streamRef.current)?.getTracks().forEach(t => t.stop())
+    if (keepAliveRef) keepAliveRef.current = null
+    streamRef.current = null
+    setFacing(f => f === 'environment' ? 'user' : 'environment')
+  }
 
   // Capture a centred SQUARE crop (eBay's photo format), with digital zoom and the
   // brightness/contrast/colour adjustments baked in so the file matches the preview.
@@ -129,7 +144,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
         <div style={{ color: '#fff', background: 'rgba(0,0,0,0.55)', borderRadius: 22, padding: '8px 16px', fontWeight: 800 }}>{count}/{max}</div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setShowAdjust(s => !s)} style={{ ...btn, background: showAdjust ? C.accent : 'rgba(0,0,0,0.55)' }}>⚙︎ Adjust</button>
-          <button onClick={() => setFacing(f => f === 'environment' ? 'user' : 'environment')} style={btn}>⟲ Flip</button>
+          <button onClick={flip} style={btn}>⟲ Flip</button>
         </div>
       </div>
 
