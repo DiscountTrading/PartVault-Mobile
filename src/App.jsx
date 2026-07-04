@@ -104,6 +104,7 @@ export default function App() {
   const [session, setSession] = useState(undefined)
   const [stores, setStores] = useState([])
   const [activeStoreId, setActiveStoreId] = useState(null)
+  const [marketplace, setMarketplace] = useState('EBAY_AU') // active store's marketplace (for region make ordering)
   const [storesLoaded, setStoresLoaded] = useState(false)
   const [tab, setTab] = useState('cars')          // 'cars' | 'account'
   const [screen, setScreen] = useState('list')     // within Cars: 'list' | 'car-detail' | 'add-part'
@@ -161,6 +162,13 @@ export default function App() {
     setScreen('list')
   }
 
+  // Active store's marketplace → regional make ordering in the car form.
+  useEffect(() => {
+    if (!activeStoreId) return
+    sb.from('stores').select('settings').eq('id', activeStoreId).single()
+      .then(({ data }) => setMarketplace(data?.settings?.marketplace || 'EBAY_AU'))
+  }, [activeStoreId])
+
   const goCars = () => { setTab('cars'); setScreen('list') }
   const goAccount = () => setTab('account')
 
@@ -216,6 +224,7 @@ export default function App() {
         <Home
           storeId={activeStoreId}
           activeStore={stores.find(s => s.store_id === activeStoreId)}
+          marketplace={marketplace}
           onSelectCar={car => { setSelectedCar(car); setScreen('car-detail') }}
         />
       )}

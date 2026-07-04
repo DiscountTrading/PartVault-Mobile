@@ -1,5 +1,5 @@
 // Shared PartVault product version — keep in sync with the admin app on every ship.
-export const APP_VERSION = '3.27.1'
+export const APP_VERSION = '3.27.2'
 
 export const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ebay-import'
 
@@ -44,3 +44,17 @@ export const MAKES = [
   'Saab','Saturn','Scion','SEAT','Skoda','SsangYong','Subaru','Suzuki','Tesla','Toyota',
   'Vauxhall','Volkswagen','Volvo','Other',
 ]
+
+// Region-prioritised make order for the car dropdown — local makes first so
+// yard capture is fast (US sees Ford/Chevy up top, not alphabetical Acura).
+const REGION_PRIORITY = {
+  EBAY_US: ['Ford','Chevrolet','Toyota','Honda','RAM','GMC','Jeep','Nissan','Dodge','Hyundai','Kia','Subaru','BMW','Mercedes-Benz','Chrysler','Cadillac','Buick','Lincoln','Acura','Infiniti','Tesla'],
+  EBAY_GB: ['Ford','Vauxhall','Volkswagen','BMW','Audi','Mercedes-Benz','Toyota','Nissan','Peugeot','Renault','Citroen','MINI','Land Rover','Kia','Hyundai','Skoda','SEAT','Mazda'],
+  EBAY_AU: ['Toyota','Ford','Holden','Mazda','Hyundai','Kia','Mitsubishi','Nissan','Subaru','Honda','Volkswagen','BMW','Mercedes-Benz','Isuzu'],
+}
+export function makesFor(mp) {
+  const pri = REGION_PRIORITY[mp] || (mp === 'EBAY_CA' ? REGION_PRIORITY.EBAY_US : REGION_PRIORITY.EBAY_AU)
+  const top = pri.filter(m => MAKES.includes(m))
+  const rest = MAKES.filter(m => m !== 'Other' && !top.includes(m))
+  return [...top, ...rest, 'Other']
+}

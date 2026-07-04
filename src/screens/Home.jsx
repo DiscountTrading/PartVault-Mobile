@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import { sb } from '../lib/supabase'
-import { C, MAKES } from '../lib/constants'
+import { C, MAKES, makesFor } from '../lib/constants'
 import { makeMainAndThumb } from '../lib/image'
 import { identifyCar } from '../lib/ai'
 
 const MAX_CAR_PHOTOS = 8
 
-export default function Home({ onSelectCar, storeId, activeStore }) {
+export default function Home({ onSelectCar, storeId, activeStore, marketplace }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -185,7 +185,7 @@ export default function Home({ onSelectCar, storeId, activeStore }) {
             <select value={form.make} onChange={e => setForm(f => ({ ...f, make: e.target.value }))}
               style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', background: '#fff' }}>
               <option value="">Select Make</option>
-              {MAKES.map(m => <option key={m}>{m}</option>)}
+              {makesFor(marketplace).map(m => <option key={m}>{m}</option>)}
             </select>
 
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Model</label>
