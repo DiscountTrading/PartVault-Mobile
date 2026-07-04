@@ -1,5 +1,5 @@
 // Shared PartVault product version — keep in sync with the admin app on every ship.
-export const APP_VERSION = '3.24.2'
+export const APP_VERSION = '3.24.3'
 
 export const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ebay-import'
 
@@ -33,8 +33,14 @@ export const EBAY_AU_CATEGORIES = {
 
 export const CATEGORY_NAMES = Object.keys(EBAY_AU_CATEGORIES)
 
+// Superset across marketplaces (AU + US/CA + UK makes) so any region's cars are
+// selectable. Alphabetical; 'Other' last.
 export const MAKES = [
-  'Audi','BMW','Chrysler','Citroen','Dodge','Ford','Holden','Honda','Hyundai','Jeep',
-  'Kia','Land Rover','Lexus','Mazda','Mercedes-Benz','Mitsubishi','Nissan','Peugeot',
-  'Porsche','Renault','Skoda','Subaru','Suzuki','Toyota','Volkswagen','Volvo','Other',
+  'Acura','Alfa Romeo','Aston Martin','Audi','Bentley','BMW','Buick','Cadillac','Chevrolet',
+  'Chrysler','Citroen','Dacia','Daihatsu','Dodge','Fiat','Ford','Genesis','GMC','GWM','Haval',
+  'Holden','Honda','Hummer','Hyundai','Infiniti','Isuzu','Jaguar','Jeep','Kia','Land Rover',
+  'LDV','Lexus','Lincoln','Lotus','Mazda','Mercedes-Benz','Mercury','MG','MINI','Mitsubishi',
+  'Nissan','Oldsmobile','Peugeot','Pontiac','Porsche','RAM','Renault','Rolls-Royce','Rover',
+  'Saab','Saturn','Scion','SEAT','Skoda','SsangYong','Subaru','Suzuki','Tesla','Toyota',
+  'Vauxhall','Volkswagen','Volvo','Other',
 ]
