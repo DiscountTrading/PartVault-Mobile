@@ -148,9 +148,10 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
         </div>
       </div>
 
-      {/* Adjustment sliders (zoom / brightness / contrast / colour) — saved as default */}
+      {/* Adjustment sliders (zoom / brightness / contrast / colour) — saved as default.
+          zIndex keeps it above the thumbnail strip/shutter so Reset stays tappable. */}
       {showAdjust && (
-        <div style={{ position: 'absolute', bottom: 148, left: 12, right: 12, background: 'rgba(0,0,0,0.62)', borderRadius: 14, padding: '12px 14px' }}>
+        <div style={{ position: 'absolute', bottom: 148, left: 12, right: 12, background: 'rgba(0,0,0,0.62)', borderRadius: 14, padding: '12px 14px', zIndex: 10 }}>
           {[
             ['Zoom', 'zoom', 1, 5, 0.1],
             ['Brightness', 'brightness', 0.5, 1.8, 0.05],
@@ -170,8 +171,9 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
         </div>
       )}
 
-      {/* Recent thumbnails */}
-      {recentThumbs.length > 0 && (
+      {/* Recent thumbnails — hidden while the Adjust panel is open (it occupies
+          the same strip and would otherwise overlap the Reset button). */}
+      {!showAdjust && recentThumbs.length > 0 && (
         <div style={{ position: 'absolute', bottom: 130, left: 0, right: 0, display: 'flex', gap: 6, padding: '0 16px', overflowX: 'auto' }}>
           {recentThumbs.slice(-6).map((t, i) => <img key={i} src={t} alt="" style={{ width: 46, height: 46, objectFit: 'cover', borderRadius: 6, border: '2px solid rgba(255,255,255,0.85)', flexShrink: 0 }} />)}
         </div>
