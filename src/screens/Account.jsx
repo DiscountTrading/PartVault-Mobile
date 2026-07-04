@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { sb } from '../lib/supabase'
 import { C, APP_VERSION } from '../lib/constants'
 import { biometricSupported, isEnabledFor, enableBiometric, disableBiometric } from '../lib/biometric'
+import TopTabs from '../components/TopTabs'
 
-export default function Account({ email, userId, stores = [], activeStoreId, setActiveStore }) {
+export default function Account({ email, userId, stores = [], activeStoreId, setActiveStore, onCars, onAccount }) {
   const active = stores.find(s => s.store_id === activeStoreId)
   const [bioOn, setBioOn] = useState(() => !!userId && isEnabledFor(userId))
   const [bioBusy, setBioBusy] = useState(false)
@@ -41,9 +42,10 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
   const cardStyle = { background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }
 
   return (
-    <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 90 }}>
-      <div style={{ background: C.headerBg, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 10 }}>
+    <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+      <div style={{ background: C.headerBg, padding: '12px 16px', position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 'calc(12px + env(safe-area-inset-top))' }}>
         <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>Settings</div>
+        <TopTabs active="settings" onCars={onCars} onAccount={onAccount} />
       </div>
 
       <div style={{ padding: 20 }}>

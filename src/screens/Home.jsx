@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { C, MAKES, makesFor } from '../lib/constants'
+import TopTabs from '../components/TopTabs'
 import { makeMainAndThumb } from '../lib/image'
 import { identifyCar } from '../lib/ai'
 
 const MAX_CAR_PHOTOS = 8
 
-export default function Home({ onSelectCar, storeId, activeStore, marketplace }) {
+export default function Home({ onSelectCar, storeId, activeStore, marketplace, onCars, onAccount }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -116,13 +117,16 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace })
 
   return (
     <div style={{ minHeight: '100vh', background: C.bg }}>
-      {/* Header */}
-      <div style={{ background: C.headerBg, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
-        {activeStore && <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>{activeStore.store_name}</div>}
+      {/* Header with top nav (replaces the bottom bar) */}
+      <div style={{ background: C.headerBg, padding: '12px 16px', position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, paddingTop: 'calc(12px + env(safe-area-inset-top))' }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
+          {activeStore && <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeStore.store_name}</div>}
+        </div>
+        <TopTabs active="cars" onCars={onCars} onAccount={onAccount} />
       </div>
 
-      <div style={{ padding: 20, paddingBottom: 90 }}>
+      <div style={{ padding: 20, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>Cars</div>
           <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>

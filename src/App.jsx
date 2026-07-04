@@ -84,21 +84,6 @@ function DesktopNotice() {
   )
 }
 
-function BottomBar({ tab, onCars, onAccount }) {
-  const item = (active, icon, label, onClick) => (
-    <button onClick={onClick}
-      style={{ flex: 1, background: 'none', border: 'none', padding: '8px 0', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, color: active ? C.accent : C.muted }}>
-      <span style={{ fontSize: 20 }}>{icon}</span>
-      <span style={{ fontSize: 11, fontWeight: 600 }}>{label}</span>
-    </button>
-  )
-  return (
-    <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: `1px solid ${C.border}`, display: 'flex', zIndex: 50, paddingBottom: 'env(safe-area-inset-bottom)' }}>
-      {item(tab === 'cars', '🚗', 'Cars', onCars)}
-      {item(tab === 'account', '⚙️', 'Settings', onAccount)}
-    </div>
-  )
-}
 
 export default function App() {
   const [session, setSession] = useState(undefined)
@@ -197,15 +182,11 @@ export default function App() {
 
   if (!activeStoreId) return <JoinStore onJoined={loadStores} />
 
-  // The bottom bar shows on the top-level screens; deep capture flows hide it to stay focused.
-  const inCarsFlow = tab === 'cars' && (screen === 'car-detail' || screen === 'add-part')
-  const showBottomBar = !inCarsFlow
-
   return (
     <div>
       <DesktopNotice />
       {tab === 'account' ? (
-        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} />
+        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onAccount={goAccount} />
       ) : screen === 'add-part' ? (
         <AddPart
           car={selectedCar}
@@ -225,10 +206,11 @@ export default function App() {
           storeId={activeStoreId}
           activeStore={stores.find(s => s.store_id === activeStoreId)}
           marketplace={marketplace}
+          onCars={goCars}
+          onAccount={goAccount}
           onSelectCar={car => { setSelectedCar(car); setScreen('car-detail') }}
         />
       )}
-      {showBottomBar && <BottomBar tab={tab} onCars={goCars} onAccount={goAccount} />}
     </div>
   )
 }
