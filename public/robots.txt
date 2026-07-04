@@ -1,3 +1,2 @@
-# PartVault field app is a private, login-gated tool — keep it out of search.
 User-agent: *
-Disallow: /
+Allow: /
