@@ -43,7 +43,7 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
   return (
     <div style={{ minHeight: '100vh', background: C.bg, paddingBottom: 90 }}>
       <div style={{ background: C.headerBg, padding: '16px 20px', position: 'sticky', top: 0, zIndex: 10 }}>
-        <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>Account</div>
+        <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>Settings</div>
       </div>
 
       <div style={{ padding: 20 }}>

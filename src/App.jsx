@@ -95,7 +95,7 @@ function BottomBar({ tab, onCars, onAccount }) {
   return (
     <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: `1px solid ${C.border}`, display: 'flex', zIndex: 50, paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {item(tab === 'cars', '🚗', 'Cars', onCars)}
-      {item(tab === 'account', '👤', 'Account', onAccount)}
+      {item(tab === 'account', '⚙️', 'Settings', onAccount)}
     </div>
   )
 }
