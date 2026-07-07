@@ -6,6 +6,7 @@ import Home from './screens/Home'
 import CarDetail from './screens/CarDetail'
 import AddPart from './screens/AddPart'
 import Account from './screens/Account'
+import Collect from './screens/Collect'
 import { isEnabledFor, unlockBiometric } from './lib/biometric'
 
 const ACTIVE_KEY = 'pv_active_store'
@@ -155,6 +156,7 @@ export default function App() {
   }, [activeStoreId])
 
   const goCars = () => { setTab('cars'); setScreen('list') }
+  const goCollect = () => setTab('collect')
   const goAccount = () => setTab('account')
 
   if (initError) return (
@@ -186,7 +188,9 @@ export default function App() {
     <div>
       <DesktopNotice />
       {tab === 'account' ? (
-        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onAccount={goAccount} />
+        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
+      ) : tab === 'collect' ? (
+        <Collect storeId={activeStoreId} activeStore={stores.find(s => s.store_id === activeStoreId)} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
       ) : screen === 'add-part' ? (
         <AddPart
           car={selectedCar}
@@ -207,6 +211,7 @@ export default function App() {
           activeStore={stores.find(s => s.store_id === activeStoreId)}
           marketplace={marketplace}
           onCars={goCars}
+          onCollect={goCollect}
           onAccount={goAccount}
           onSelectCar={car => { setSelectedCar(car); setScreen('car-detail') }}
         />
