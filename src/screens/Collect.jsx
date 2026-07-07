@@ -33,7 +33,7 @@ export default function Collect({ storeId, activeStore, onCars, onCollect, onAcc
     const partIds = [...new Set(rows.map(r => r.part_id))]
     const [wfRes, partsRes, photosRes] = await Promise.all([
       sb.from('sale_workflow').select('sale_id, collected_at').in('sale_id', saleIds),
-      sb.from('parts').select('id, sku, title, car_id').in('id', partIds),
+      sb.from('parts').select('id, sku, title, car_id, location').in('id', partIds),
       sb.from('photos').select('parent_id, thumb_url, url, is_primary').eq('parent_type', 'part').in('parent_id', partIds),
     ])
     const collected = new Set((wfRes.data || []).filter(w => w.collected_at).map(w => w.sale_id))
@@ -57,6 +57,7 @@ export default function Collect({ storeId, activeStore, onCars, onCollect, onAcc
         saleId: r.id,
         title: p.title || r.title || 'Untitled part',
         sku: p.sku || r.sku || '',
+        location: p.location || null,
         thumb: photoByPart[r.part_id] || null,
         car: car ? [car.make, car.model, car.year].filter(Boolean).join(' ') : null,
         buyer: r.buyer || null,
@@ -118,7 +119,12 @@ export default function Collect({ storeId, activeStore, onCars, onCollect, onAcc
                 : <div style={{ width: 56, height: 56, borderRadius: 10, background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📦</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</div>
-                <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
+                {it.location
+                  ? <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e', fontSize: 13, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}>
+                      <span>📍</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.location}</span>
+                    </div>
+                  : <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>📍 No location set</div>}
+                <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
                   {it.sku ? <span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.text }}>{it.sku}</span> : 'no SKU'} · sold {fmtDate(it.soldAt)}
                 </div>
                 {it.car && <div style={{ fontSize: 12, color: C.accent, fontWeight: 600, marginTop: 2 }}>🚗 {it.car}</div>}

@@ -11,7 +11,7 @@ const MAX_PHOTOS = 24
 
 export default function AddPart({ car, storeId, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
-  const [form, setForm] = useState({ title: '', list_price: '', notes: '' })
+  const [form, setForm] = useState({ title: '', list_price: '', notes: '', location: '' })
   const [aiAssess, setAiAssess] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -137,6 +137,7 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         condition: 'Used – Good',
         list_price: +form.list_price || 0,
         notes: form.notes,
+        location: form.location?.trim() || null,
         status: 'in_stock',
         source: 'manual',
         acquired_date: new Date().toISOString().slice(0, 10),
@@ -248,6 +249,12 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>List price (optional)</label>
         <input value={form.list_price} onChange={e => set('list_price', e.target.value)}
           placeholder="$0 — set later or let AI suggest" type="number" inputMode="decimal"
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
+
+        {/* Storage location (optional) — where the part is shelved, so it's easy to pull when sold */}
+        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Storage location (optional)</label>
+        <input value={form.location} onChange={e => set('location', e.target.value)}
+          placeholder="Shelf / bin / rack — where you're putting it"
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
 
         {/* Notes (optional) */}
