@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from 'react'
 import { C } from '../lib/constants'
+import { gradientStats, SOFT_PEAK } from '../lib/image'
 
 const ADJUST_KEY = 'pv_cam_adjust'
 const DEFAULTS = { zoom: 1, brightness: 1, contrast: 1, saturate: 1 }
@@ -176,18 +177,30 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     try { ctx.filter = filterCss } catch { /* filter unsupported → preview still shows it */ }
     ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(v, sx, sy, side, side, 0, 0, out, out)
-    canvas.toBlob(b => resolve(b), 'image/jpeg', 0.92)
+    // Read sharpness on a tiny copy so a soft/out-of-focus shot can prompt a retake.
+    let sharpness = null
+    try {
+      const as = Math.min(240, out), a = document.createElement('canvas')
+      a.width = as; a.height = as
+      const actx = a.getContext('2d')
+      actx.drawImage(canvas, 0, 0, as, as)
+      sharpness = gradientStats(actx.getImageData(0, 0, as, as)).peak
+    } catch { /* analysis unsupported — skip the nudge */ }
+    canvas.toBlob(b => resolve({ blob: b, sharpness }), 'image/jpeg', 0.92)
   })
 
   const snap = async () => {
     if (count >= max) return
-    const blob = await grabBlob()
+    const { blob, sharpness } = (await grabBlob()) || {}
     if (!blob) return
     setFlash(true); setTimeout(() => setFlash(false), 110)
-    if (confirm) {
-      setPending({ url: URL.createObjectURL(blob), blob })
+    // Soft shot? Divert to the confirm preview so the part number can be retaken
+    // (otherwise accept immediately and stay live for fast capture).
+    const soft = sharpness != null && sharpness < SOFT_PEAK
+    if (confirm || soft) {
+      setPending({ url: URL.createObjectURL(blob), blob, soft })
     } else {
-      onCapture(blob) // accept immediately — stay live for the next shot
+      onCapture(blob)
     }
   }
 
@@ -265,13 +278,18 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
       </div>
       {count >= max && <div style={{ position: 'absolute', bottom: 116, width: '100%', textAlign: 'center', color: '#fff', fontSize: 13 }}>Max {max} photos</div>}
 
-      {/* Confirm overlay */}
+      {/* Confirm overlay — always in confirm mode, and auto-shown for a soft shot */}
       {pending && (
         <div style={{ position: 'absolute', inset: 0, background: '#000', display: 'flex', flexDirection: 'column' }}>
           <img src={pending.url} alt="" style={{ flex: 1, width: '100%', objectFit: 'contain' }} />
+          {pending.soft && (
+            <div style={{ background: 'rgba(217,119,6,0.95)', color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'center', padding: '10px 14px' }}>
+              ⚠️ This shot looks soft — retake for a sharper part number
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 12, padding: 24, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
-            <button onClick={retake} style={{ flex: 1, ...btn, background: 'rgba(255,255,255,0.2)', padding: 14 }}>Retake</button>
-            <button onClick={keep} style={{ flex: 2, ...btn, background: C.accent, padding: 14 }}>Keep</button>
+            <button onClick={retake} style={{ flex: 2, ...btn, background: pending.soft ? C.accent : 'rgba(255,255,255,0.2)', padding: 14 }}>↻ Retake</button>
+            <button onClick={keep} style={{ flex: 1, ...btn, background: pending.soft ? 'rgba(255,255,255,0.2)' : C.accent, padding: 14 }}>{pending.soft ? 'Keep anyway' : 'Keep'}</button>
           </div>
         </div>
       )}
