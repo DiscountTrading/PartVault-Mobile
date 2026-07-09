@@ -19,6 +19,8 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(ADJUST_KEY) || '{}') } } catch { return { ...DEFAULTS } }
   })
   const [showAdjust, setShowAdjust] = useState(false)
+  const [focusRing, setFocusRing] = useState(null) // { x, y, id } — tap-to-focus indicator
+  const lastPinchEndRef = useRef(0)
   useEffect(() => { try { localStorage.setItem(ADJUST_KEY, JSON.stringify(adj)) } catch { /* ignore */ } }, [adj])
   const filterCss = `brightness(${adj.brightness}) contrast(${adj.contrast}) saturate(${adj.saturate})`
   const setA = (k, v) => setAdj(a => ({ ...a, [k]: +v }))
@@ -42,7 +44,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
         setAdj(a => ({ ...a, zoom: z }))
       }
     }
-    const onEnd = (e) => { if (e.touches.length < 2) pinchRef.current = null }
+    const onEnd = (e) => { if (e.touches.length < 2) { if (pinchRef.current) lastPinchEndRef.current = Date.now(); pinchRef.current = null } }
     el.addEventListener('touchstart', onStart, { passive: false })
     el.addEventListener('touchmove', onMove, { passive: false })
     el.addEventListener('touchend', onEnd)
@@ -69,6 +71,14 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
         if (!active) { if (!keepAliveRef) stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
         if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => {}) }
+        // Ask for continuous autofocus where the browser supports it (Android/Chrome).
+        // No-ops on iOS Safari, which manages focus itself.
+        try {
+          const track = stream.getVideoTracks?.()[0]
+          if (track?.getCapabilities?.().focusMode?.includes('continuous')) {
+            await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
+          }
+        } catch { /* focus control unsupported — fine */ }
       } catch (e) {
         setError('Could not open the camera. Check camera permissions for this site, or use "From album" instead.')
       }
@@ -85,6 +95,57 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     streamRef.current = null
     setFacing(f => f === 'environment' ? 'user' : 'environment')
   }
+
+  // Tap-to-focus (Apple-camera style). Point the lens at whatever you tapped so
+  // part numbers / small text come out sharp. On Android/Chrome this drives the
+  // real hardware focus via a point-of-interest; on iOS Safari (no web focus API)
+  // it can't move focus, but the ring still confirms the tap and the OS keeps its
+  // own continuous autofocus running.
+  const focusAtPoint = async (nx, ny) => {
+    const track = streamRef.current?.getVideoTracks?.()[0]
+    if (!track?.getCapabilities) return
+    let caps = {}
+    try { caps = track.getCapabilities() } catch { return }
+    const modes = caps.focusMode || []
+    const hasPOI = caps.pointsOfInterest !== undefined
+    if (!modes.length && !hasPOI) return // unsupported (e.g. iOS Safari)
+    const advanced = {}
+    if (modes.includes('single-shot')) advanced.focusMode = 'single-shot'
+    else if (modes.includes('continuous')) advanced.focusMode = 'continuous'
+    if (hasPOI) advanced.pointsOfInterest = [{ x: nx, y: ny }]
+    if (!Object.keys(advanced).length) return
+    try { await track.applyConstraints({ advanced: [advanced] }) } catch { /* ignore */ }
+  }
+
+  // Map a tap on the square viewport to a focus point in the camera's source frame,
+  // undoing the digital-zoom scale and the object-fit:cover crop, then focus there.
+  const handleTapFocus = (e) => {
+    if (pinchRef.current || Date.now() - lastPinchEndRef.current < 300) return // not during/just after a pinch
+    const el = viewportRef.current, v = videoRef.current
+    if (!el || !v) return
+    const rect = el.getBoundingClientRect()
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top
+    if (cx < 0 || cy < 0 || cx > rect.width || cy > rect.height) return
+    setFocusRing({ x: cx, y: cy, id: Date.now() })
+    const vw = v.videoWidth || 1, vh = v.videoHeight || 1
+    const zoom = adj.zoom || 1
+    // undo CSS scale(zoom) about centre, in viewport space
+    const px = (cx - rect.width / 2) / zoom + rect.width / 2
+    const py = (cy - rect.height / 2) / zoom + rect.height / 2
+    // undo object-fit:cover (scale to the shorter source edge, centre-cropped)
+    const scale = Math.max(rect.width / vw, rect.height / vh)
+    const offX = (vw * scale - rect.width) / 2, offY = (vh * scale - rect.height) / 2
+    const nx = Math.min(1, Math.max(0, (px + offX) / scale / vw))
+    const ny = Math.min(1, Math.max(0, (py + offY) / scale / vh))
+    focusAtPoint(nx, ny)
+  }
+
+  // Clear the focus ring shortly after it appears.
+  useEffect(() => {
+    if (!focusRing) return
+    const t = setTimeout(() => setFocusRing(null), 750)
+    return () => clearTimeout(t)
+  }, [focusRing])
 
   // Capture a centred SQUARE crop (eBay's photo format), with digital zoom and the
   // brightness/contrast/colour adjustments baked in so the file matches the preview.
@@ -130,13 +191,17 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 2000 }}>
+      <style>{`@keyframes pvFocus { 0% { transform: scale(1.5); opacity: 0; } 25% { opacity: 1; } 100% { transform: scale(1); opacity: 0.9; } }`}</style>
       {/* Fixed square viewport — never changes size. The image zooms INSIDE it
           (video is clipped to the square), matching eBay's square photo format. */}
-      <div ref={viewportRef} style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '100vw', maxWidth: '100vh', maxHeight: '100vh', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.65)', boxSizing: 'border-box', background: '#000', touchAction: 'none' }}>
+      <div ref={viewportRef} onClick={handleTapFocus} style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '100vw', height: '100vw', maxWidth: '100vh', maxHeight: '100vh', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.65)', boxSizing: 'border-box', background: '#000', touchAction: 'none', cursor: 'crosshair' }}>
         <video ref={videoRef} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover', filter: filterCss, transform: `scale(${adj.zoom})`, transformOrigin: 'center' }} />
+        {focusRing && (
+          <div key={focusRing.id} style={{ position: 'absolute', left: focusRing.x, top: focusRing.y, width: 74, height: 74, marginLeft: -37, marginTop: -37, border: '2px solid #ffd60a', borderRadius: 10, boxShadow: '0 0 0 1px rgba(0,0,0,0.35)', pointerEvents: 'none', animation: 'pvFocus 0.45s ease-out' }} />
+        )}
       </div>
       {flash && <div style={{ position: 'absolute', inset: 0, background: '#fff', opacity: 0.7 }} />}
-      <div style={{ position: 'absolute', top: 'calc(50px + env(safe-area-inset-top))', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 600, pointerEvents: 'none' }}>◻︎ Square · eBay format</div>
+      <div style={{ position: 'absolute', top: 'calc(50px + env(safe-area-inset-top))', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 600, pointerEvents: 'none' }}>◻︎ Square · eBay format · tap to focus</div>
 
       {/* Top bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
