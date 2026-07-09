@@ -20,6 +20,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
   })
   const [showAdjust, setShowAdjust] = useState(false)
   const [focusRing, setFocusRing] = useState(null) // { x, y, id } — tap-to-focus indicator
+  const [resInfo, setResInfo] = useState('')        // actual stream resolution (so we can see what we got)
   const lastPinchEndRef = useRef(0)
   useEffect(() => { try { localStorage.setItem(ADJUST_KEY, JSON.stringify(adj)) } catch { /* ignore */ } }, [adj])
   const filterCss = `brightness(${adj.brightness}) contrast(${adj.contrast}) saturate(${adj.saturate})`
@@ -65,20 +66,29 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
         // re-prompt / re-initialise. Only request access when we don't have one.
         let stream = keepAliveRef?.current
         if (!stream || !stream.active) {
-          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: facing } }, audio: false })
+          // Ask for the sharpest stream the camera can give (degrades gracefully via
+          // `ideal`). Without this, Safari hands back a low default (~640/720p) and
+          // close-up part numbers turn to mush once you zoom. High source res is the
+          // biggest win for legibility since our zoom is digital (a centre crop).
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: facing }, width: { ideal: 3840 }, height: { ideal: 2160 } },
+            audio: false,
+          })
           if (keepAliveRef) keepAliveRef.current = stream
         }
         if (!active) { if (!keepAliveRef) stream.getTracks().forEach(t => t.stop()); return }
         streamRef.current = stream
         if (videoRef.current) { videoRef.current.srcObject = stream; await videoRef.current.play().catch(() => {}) }
-        // Ask for continuous autofocus where the browser supports it (Android/Chrome).
-        // No-ops on iOS Safari, which manages focus itself.
+        // Report the resolution we actually got, and ask for continuous autofocus
+        // where the browser supports it (Android/Chrome). No-ops on iOS Safari.
         try {
           const track = stream.getVideoTracks?.()[0]
+          const st = track?.getSettings?.() || {}
+          if (st.width && st.height) setResInfo(`${Math.max(st.width, st.height)}×${Math.min(st.width, st.height)}`)
           if (track?.getCapabilities?.().focusMode?.includes('continuous')) {
             await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] })
           }
-        } catch { /* focus control unsupported — fine */ }
+        } catch { /* focus/settings control unsupported — fine */ }
       } catch (e) {
         setError('Could not open the camera. Check camera permissions for this site, or use "From album" instead.')
       }
@@ -156,13 +166,17 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
     const base = Math.min(vw, vh)                 // largest centred square in the frame
     const side = base / (adj.zoom || 1)          // digital zoom = tighter centre crop
     const sx = (vw - side) / 2, sy = (vh - side) / 2
-    const out = Math.min(base, 1600)             // cap the long edge
+    // Output at the crop's NATIVE pixel size (no upscaling a zoomed crop back up to
+    // a fixed size — that only bakes in blur), capped at 2400 so files stay sane.
+    // Combined with the high-res stream request, this keeps part numbers legible.
+    const out = Math.min(Math.round(side), 2400)
     const canvas = document.createElement('canvas')
     canvas.width = out; canvas.height = out
     const ctx = canvas.getContext('2d')
     try { ctx.filter = filterCss } catch { /* filter unsupported → preview still shows it */ }
+    ctx.imageSmoothingQuality = 'high'
     ctx.drawImage(v, sx, sy, side, side, 0, 0, out, out)
-    canvas.toBlob(b => resolve(b), 'image/jpeg', 0.9)
+    canvas.toBlob(b => resolve(b), 'image/jpeg', 0.92)
   })
 
   const snap = async () => {
@@ -201,7 +215,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
         )}
       </div>
       {flash && <div style={{ position: 'absolute', inset: 0, background: '#fff', opacity: 0.7 }} />}
-      <div style={{ position: 'absolute', top: 'calc(50px + env(safe-area-inset-top))', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 600, pointerEvents: 'none' }}>◻︎ Square · eBay format · tap to focus</div>
+      <div style={{ position: 'absolute', top: 'calc(50px + env(safe-area-inset-top))', left: 0, right: 0, textAlign: 'center', color: 'rgba(255,255,255,0.85)', fontSize: 12, fontWeight: 600, pointerEvents: 'none' }}>◻︎ Square · tap to focus{resInfo ? ` · ${resInfo}` : ''}</div>
 
       {/* Top bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
