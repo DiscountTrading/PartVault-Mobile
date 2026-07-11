@@ -12,7 +12,8 @@ const MAX_PHOTOS = 24
 
 export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
-  const [form, setForm] = useState({ title: '', list_price: '', notes: '', location: '', loc_row: '', loc_bay: '', loc_shelf: '' })
+  const [form, setForm] = useState({ title: '', list_price: '', notes: '', location: '', loc_row: '', loc_bay: '', loc_shelf: '', container_id: '' })
+  const [containers, setContainers] = useState([])
   const [aiAssess, setAiAssess] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -32,6 +33,14 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
   const nameTried = useRef(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  // Load the store's containers (tubs/buckets) when the feature is on.
+  useEffect(() => {
+    if (!warehouse?.containers || !storeId) return
+    sb.from('containers').select('id, code, name, loc_row, loc_bay, loc_shelf')
+      .eq('store_id', storeId).is('deleted_at', null).order('code')
+      .then(({ data }) => setContainers(data || []))
+  }, [warehouse?.containers, storeId])
 
   // Background: pre-fill an editable product name from a small inline image.
   const tryName = async (base64) => {
@@ -142,6 +151,7 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
         loc_row: form.loc_row === '' || form.loc_row == null ? null : +form.loc_row,
         loc_bay: form.loc_bay === '' || form.loc_bay == null ? null : +form.loc_bay,
         loc_shelf: form.loc_shelf === '' || form.loc_shelf == null ? null : +form.loc_shelf,
+        container_id: form.container_id || null,
         status: 'in_stock',
         source: 'manual',
         acquired_date: new Date().toISOString().slice(0, 10),
@@ -285,6 +295,24 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
             </div>
           )
         })()}
+
+        {/* Container (tub/bucket) — assign at capture, inherit its home spot */}
+        {warehouse?.containers && (
+          <>
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>🪣 {warehouseConfig(warehouse).containerLabel} (optional)</label>
+            <select value={form.container_id || ''} onChange={e => {
+              const id = e.target.value || ''
+              const ct = containers.find(c => c.id === id)
+              if (ct && (ct.loc_row != null || ct.loc_bay != null || ct.loc_shelf != null)) {
+                setForm(f => ({ ...f, container_id: id, loc_row: ct.loc_row ?? '', loc_bay: ct.loc_bay ?? '', loc_shelf: ct.loc_shelf ?? '' }))
+              } else { set('container_id', id) }
+            }}
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none', background: '#fff', appearance: 'none' }}>
+              <option value="">— none (loose) —</option>
+              {containers.map(c => <option key={c.id} value={c.id}>{[c.code, c.name].filter(Boolean).join(' · ')}</option>)}
+            </select>
+          </>
+        )}
 
         {/* Notes (optional) */}
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Notes (optional)</label>

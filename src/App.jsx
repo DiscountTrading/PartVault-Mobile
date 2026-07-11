@@ -7,6 +7,7 @@ import CarDetail from './screens/CarDetail'
 import AddPart from './screens/AddPart'
 import Account from './screens/Account'
 import Collect from './screens/Collect'
+import Scan from './screens/Scan'
 import { isEnabledFor, unlockBiometric } from './lib/biometric'
 import { WAREHOUSE_DEFAULTS } from './lib/warehouse'
 
@@ -163,6 +164,9 @@ export default function App() {
   const goCars = () => { setTab('cars'); setScreen('list') }
   const goCollect = () => setTab('collect')
   const goAccount = () => setTab('account')
+  const goScan = () => setTab('scan')
+  // Scan tab only appears when the store uses containers (tubs/buckets).
+  const onScan = warehouse?.containers ? goScan : undefined
 
   if (initError) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, flexDirection: 'column', gap: 8 }}>
@@ -193,9 +197,11 @@ export default function App() {
     <div>
       <DesktopNotice />
       {tab === 'account' ? (
-        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
+        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onCollect={goCollect} onAccount={goAccount} onScan={onScan} />
       ) : tab === 'collect' ? (
-        <Collect storeId={activeStoreId} activeStore={stores.find(s => s.store_id === activeStoreId)} warehouse={warehouse} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
+        <Collect storeId={activeStoreId} activeStore={stores.find(s => s.store_id === activeStoreId)} warehouse={warehouse} onCars={goCars} onCollect={goCollect} onAccount={goAccount} onScan={onScan} />
+      ) : tab === 'scan' ? (
+        <Scan storeId={activeStoreId} activeStore={stores.find(s => s.store_id === activeStoreId)} warehouse={warehouse} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
       ) : screen === 'add-part' ? (
         <AddPart
           car={selectedCar}
@@ -219,6 +225,7 @@ export default function App() {
           onCars={goCars}
           onCollect={goCollect}
           onAccount={goAccount}
+          onScan={onScan}
           onSelectCar={car => { setSelectedCar(car); setScreen('car-detail') }}
         />
       )}

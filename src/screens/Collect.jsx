@@ -13,7 +13,7 @@ import { hasGridLoc, formatGridLoc } from '../lib/warehouse'
 const DAY = 86400000
 const fmtDate = t => t ? new Date(t).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : ''
 
-export default function Collect({ storeId, activeStore, warehouse, onCars, onCollect, onAccount }) {
+export default function Collect({ storeId, activeStore, warehouse, onCars, onCollect, onAccount, onScan }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
@@ -35,11 +35,18 @@ export default function Collect({ storeId, activeStore, warehouse, onCars, onCol
     const partIds = [...new Set(rows.map(r => r.part_id))]
     const [wfRes, partsRes, photosRes] = await Promise.all([
       sb.from('sale_workflow').select('sale_id, collected_at').in('sale_id', saleIds),
-      sb.from('parts').select('id, sku, title, car_id, location, loc_row, loc_bay, loc_shelf').in('id', partIds),
+      sb.from('parts').select('id, sku, title, car_id, location, loc_row, loc_bay, loc_shelf, container_id').in('id', partIds),
       sb.from('photos').select('parent_id, thumb_url, url, is_primary').eq('parent_type', 'part').in('parent_id', partIds),
     ])
     const collected = new Set((wfRes.data || []).filter(w => w.collected_at).map(w => w.sale_id))
     const partById = Object.fromEntries((partsRes.data || []).map(p => [p.id, p]))
+    // Resolve container codes for parts kept in a tub/bucket.
+    const containerIds = [...new Set((partsRes.data || []).map(p => p.container_id).filter(Boolean))]
+    let containerById = {}
+    if (containerIds.length) {
+      const { data: cts } = await sb.from('containers').select('id, code, name').in('id', containerIds)
+      containerById = Object.fromEntries((cts || []).map(c => [c.id, c]))
+    }
     const carIds = [...new Set((partsRes.data || []).map(p => p.car_id).filter(Boolean))]
     let carById = {}
     if (carIds.length) {
@@ -61,6 +68,7 @@ export default function Collect({ storeId, activeStore, warehouse, onCars, onCol
         sku: p.sku || r.sku || '',
         location: p.location || null,
         loc_row: p.loc_row ?? null, loc_bay: p.loc_bay ?? null, loc_shelf: p.loc_shelf ?? null,
+        container: p.container_id ? containerById[p.container_id] : null,
         thumb: photoByPart[r.part_id] || null,
         car: car ? [car.make, car.model, car.year].filter(Boolean).join(' ') : null,
         buyer: r.buyer || null,
@@ -92,7 +100,7 @@ export default function Collect({ storeId, activeStore, warehouse, onCars, onCol
           <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
           {activeStore && <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeStore.store_name}</div>}
         </div>
-        <TopTabs active="collect" onCars={onCars} onCollect={onCollect} onAccount={onAccount} />
+        <TopTabs active="collect" onCars={onCars} onCollect={onCollect} onAccount={onAccount} onScan={onScan} />
       </div>
 
       <div style={{ padding: 20, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
@@ -135,6 +143,7 @@ export default function Collect({ storeId, activeStore, warehouse, onCars, onCol
                       <span>📍</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.location}</span>
                     </div>
                   : <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>📍 No location set</div>}
+                {it.container && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, marginLeft: gridLoc || it.location ? 6 : 0, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', fontSize: 12.5, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}><span>🪣</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[it.container.code, it.container.name].filter(Boolean).join(' · ')}</span></div>}
                 {gridLoc && it.location && <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>📍 {it.location}</div>}
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
                   {it.sku ? <span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.text }}>{it.sku}</span> : 'no SKU'} · sold {fmtDate(it.soldAt)}

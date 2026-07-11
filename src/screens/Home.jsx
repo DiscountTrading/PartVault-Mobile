@@ -7,7 +7,7 @@ import { identifyCar } from '../lib/ai'
 
 const MAX_CAR_PHOTOS = 8
 
-export default function Home({ onSelectCar, storeId, activeStore, marketplace, onCars, onCollect, onAccount }) {
+export default function Home({ onSelectCar, storeId, activeStore, marketplace, onCars, onCollect, onAccount, onScan }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -123,7 +123,7 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
           <div style={{ color: '#fff', fontWeight: 800, fontSize: 18, fontFamily: "'Inter Tight',system-ui,sans-serif" }}>PartVault</div>
           {activeStore && <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{activeStore.store_name}</div>}
         </div>
-        <TopTabs active="cars" onCars={onCars} onCollect={onCollect} onAccount={onAccount} />
+        <TopTabs active="cars" onCars={onCars} onCollect={onCollect} onAccount={onAccount} onScan={onScan} />
       </div>
 
       <div style={{ padding: 20, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
