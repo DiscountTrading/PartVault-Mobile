@@ -1,5 +1,5 @@
 // Shared PartVault product version — keep in sync with the admin app on every ship.
-export const APP_VERSION = '3.33.0'
+export const APP_VERSION = '3.33.1'
 
 export const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ebay-import'
 
