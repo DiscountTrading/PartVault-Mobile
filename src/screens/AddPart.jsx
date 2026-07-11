@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
+import { warehouseConfig } from '../lib/warehouse'
 import { makeMainAndThumb, toSmallBase64 } from '../lib/image'
 import { quickNameFromBase64, quickNameOptionsFromBase64 } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
@@ -9,9 +10,9 @@ const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
 const MAX_PHOTOS = 24
 
-export default function AddPart({ car, storeId, onSave, onCancel }) {
+export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
-  const [form, setForm] = useState({ title: '', list_price: '', notes: '', location: '' })
+  const [form, setForm] = useState({ title: '', list_price: '', notes: '', location: '', loc_row: '', loc_bay: '', loc_shelf: '' })
   const [aiAssess, setAiAssess] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -138,6 +139,9 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         list_price: +form.list_price || 0,
         notes: form.notes,
         location: form.location?.trim() || null,
+        loc_row: form.loc_row === '' || form.loc_row == null ? null : +form.loc_row,
+        loc_bay: form.loc_bay === '' || form.loc_bay == null ? null : +form.loc_bay,
+        loc_shelf: form.loc_shelf === '' || form.loc_shelf == null ? null : +form.loc_shelf,
         status: 'in_stock',
         source: 'manual',
         acquired_date: new Date().toISOString().slice(0, 10),
@@ -256,6 +260,31 @@ export default function AddPart({ car, storeId, onSave, onCancel }) {
         <input value={form.location} onChange={e => set('location', e.target.value)}
           placeholder="Shelf / bin / rack — where you're putting it"
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
+
+        {/* Structured warehouse grid position (optional) — only when the store uses a grid */}
+        {warehouse?.enabled && (() => {
+          const wc = warehouseConfig(warehouse)
+          const selStyle = { width: '100%', padding: '11px 12px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none', background: '#fff', appearance: 'none' }
+          const axis = (key, label, count) => (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label style={{ fontSize: 11, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 4 }}>{label}</label>
+              <select value={form[key]} onChange={e => set(key, e.target.value === '' ? '' : +e.target.value)} style={selStyle}>
+                <option value="">—</option>
+                {Array.from({ length: Math.max(0, count | 0) }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
+              </select>
+            </div>
+          )
+          return (
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>🗺️ Warehouse spot (optional)</label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {axis('loc_row', wc.rowLabel, wc.rows)}
+                {axis('loc_bay', wc.bayLabel, wc.bays)}
+                {axis('loc_shelf', wc.shelfLabel, wc.shelves)}
+              </div>
+            </div>
+          )
+        })()}
 
         {/* Notes (optional) */}
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Notes (optional)</label>

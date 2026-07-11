@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
 import { C } from '../lib/constants'
 import TopTabs from '../components/TopTabs'
+import WarehouseMap from '../components/WarehouseMap'
+import { hasGridLoc, formatGridLoc } from '../lib/warehouse'
 
 // "Collect" — a yard pick-list of sold parts that still need pulling from stock.
 // Reads the same ebay_sales + sale_workflow the admin Sales pipeline uses, so
@@ -11,7 +13,7 @@ import TopTabs from '../components/TopTabs'
 const DAY = 86400000
 const fmtDate = t => t ? new Date(t).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : ''
 
-export default function Collect({ storeId, activeStore, onCars, onCollect, onAccount }) {
+export default function Collect({ storeId, activeStore, warehouse, onCars, onCollect, onAccount }) {
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
@@ -33,7 +35,7 @@ export default function Collect({ storeId, activeStore, onCars, onCollect, onAcc
     const partIds = [...new Set(rows.map(r => r.part_id))]
     const [wfRes, partsRes, photosRes] = await Promise.all([
       sb.from('sale_workflow').select('sale_id, collected_at').in('sale_id', saleIds),
-      sb.from('parts').select('id, sku, title, car_id, location').in('id', partIds),
+      sb.from('parts').select('id, sku, title, car_id, location, loc_row, loc_bay, loc_shelf').in('id', partIds),
       sb.from('photos').select('parent_id, thumb_url, url, is_primary').eq('parent_type', 'part').in('parent_id', partIds),
     ])
     const collected = new Set((wfRes.data || []).filter(w => w.collected_at).map(w => w.sale_id))
@@ -58,6 +60,7 @@ export default function Collect({ storeId, activeStore, onCars, onCollect, onAcc
         title: p.title || r.title || 'Untitled part',
         sku: p.sku || r.sku || '',
         location: p.location || null,
+        loc_row: p.loc_row ?? null, loc_bay: p.loc_bay ?? null, loc_shelf: p.loc_shelf ?? null,
         thumb: photoByPart[r.part_id] || null,
         car: car ? [car.make, car.model, car.year].filter(Boolean).join(' ') : null,
         buyer: r.buyer || null,
@@ -112,18 +115,27 @@ export default function Collect({ storeId, activeStore, onCars, onCollect, onAcc
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {items.map(it => (
-            <div key={it.saleId} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: 'flex', gap: 12, alignItems: 'center' }}>
+          {items.map(it => {
+            const gridLoc = warehouse?.enabled && hasGridLoc(it) ? formatGridLoc(it, warehouse) : ''
+            const showMap = warehouse?.enabled && hasGridLoc(it) && warehouse.rows > 0 && warehouse.bays > 0
+            return (
+            <div key={it.saleId} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               {it.thumb
                 ? <img src={it.thumb} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }} />
                 : <div style={{ width: 56, height: 56, borderRadius: 10, background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📦</div>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</div>
-                {it.location
+                {gridLoc
+                  ? <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, background: '#fff7ed', border: `1px solid ${C.accent}`, color: C.accent, fontSize: 13, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}>
+                      <span>🗺️</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{gridLoc}</span>
+                    </div>
+                  : it.location
                   ? <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e', fontSize: 13, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}>
                       <span>📍</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.location}</span>
                     </div>
                   : <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>📍 No location set</div>}
+                {gridLoc && it.location && <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>📍 {it.location}</div>}
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
                   {it.sku ? <span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.text }}>{it.sku}</span> : 'no SKU'} · sold {fmtDate(it.soldAt)}
                 </div>
@@ -134,8 +146,14 @@ export default function Collect({ storeId, activeStore, onCars, onCollect, onAcc
                 style={{ flexShrink: 0, background: C.green, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: busyId === it.saleId ? 0.6 : 1 }}>
                 {busyId === it.saleId ? '…' : '✓ Collected'}
               </button>
+              </div>
+              {showMap && (
+                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                  <WarehouseMap warehouse={warehouse} part={it} compact />
+                </div>
+              )}
             </div>
-          ))}
+          )})}
         </div>
       </div>
     </div>

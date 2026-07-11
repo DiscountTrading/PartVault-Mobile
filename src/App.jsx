@@ -8,6 +8,7 @@ import AddPart from './screens/AddPart'
 import Account from './screens/Account'
 import Collect from './screens/Collect'
 import { isEnabledFor, unlockBiometric } from './lib/biometric'
+import { WAREHOUSE_DEFAULTS } from './lib/warehouse'
 
 const ACTIVE_KEY = 'pv_active_store'
 
@@ -91,6 +92,7 @@ export default function App() {
   const [stores, setStores] = useState([])
   const [activeStoreId, setActiveStoreId] = useState(null)
   const [marketplace, setMarketplace] = useState('EBAY_AU') // active store's marketplace (for region make ordering)
+  const [warehouse, setWarehouse] = useState(WAREHOUSE_DEFAULTS) // optional grid location config
   const [storesLoaded, setStoresLoaded] = useState(false)
   const [tab, setTab] = useState('cars')          // 'cars' | 'account'
   const [screen, setScreen] = useState('list')     // within Cars: 'list' | 'car-detail' | 'add-part'
@@ -152,7 +154,10 @@ export default function App() {
   useEffect(() => {
     if (!activeStoreId) return
     sb.from('stores').select('settings').eq('id', activeStoreId).single()
-      .then(({ data }) => setMarketplace(data?.settings?.marketplace || 'EBAY_AU'))
+      .then(({ data }) => {
+        setMarketplace(data?.settings?.marketplace || 'EBAY_AU')
+        setWarehouse({ ...WAREHOUSE_DEFAULTS, ...(data?.settings?.warehouse || {}) })
+      })
   }, [activeStoreId])
 
   const goCars = () => { setTab('cars'); setScreen('list') }
@@ -190,11 +195,12 @@ export default function App() {
       {tab === 'account' ? (
         <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
       ) : tab === 'collect' ? (
-        <Collect storeId={activeStoreId} activeStore={stores.find(s => s.store_id === activeStoreId)} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
+        <Collect storeId={activeStoreId} activeStore={stores.find(s => s.store_id === activeStoreId)} warehouse={warehouse} onCars={goCars} onCollect={goCollect} onAccount={goAccount} />
       ) : screen === 'add-part' ? (
         <AddPart
           car={selectedCar}
           storeId={activeStoreId}
+          warehouse={warehouse}
           onSave={() => setScreen('car-detail')}
           onCancel={() => setScreen('car-detail')}
         />
