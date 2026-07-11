@@ -8,6 +8,21 @@ import AddPart from './screens/AddPart'
 import Account from './screens/Account'
 import Collect from './screens/Collect'
 import Scan from './screens/Scan'
+import Lookup from './screens/Lookup'
+
+// A scanned QR opens app.partvault.app/p/<sku> or /c/<code>. Capture that path
+// once at boot (then clean the URL so a refresh doesn't re-trigger it) and let
+// the app resolve it to a part/container screen after login.
+function parseDeepLink() {
+  try {
+    const path = window.location.pathname || ''
+    let m = path.match(/^\/p\/([^/?#]+)/i)
+    if (m) { history.replaceState({}, '', '/'); return { kind: 'part', value: decodeURIComponent(m[1]) } }
+    m = path.match(/^\/c\/([^/?#]+)/i)
+    if (m) { history.replaceState({}, '', '/'); return { kind: 'container', value: decodeURIComponent(m[1]) } }
+  } catch { /* ignore */ }
+  return null
+}
 import { isEnabledFor, unlockBiometric } from './lib/biometric'
 import { WAREHOUSE_DEFAULTS } from './lib/warehouse'
 
@@ -100,6 +115,7 @@ export default function App() {
   const [selectedCar, setSelectedCar] = useState(null)
   const [initError, setInitError] = useState(null)
   const [locked, setLocked] = useState(false)
+  const [deepLink, setDeepLink] = useState(parseDeepLink) // scanned /p/<sku> or /c/<code>
 
   // Name this window so the admin's "Field App" link returns to this tab
   useEffect(() => { window.name = 'partvault-app' }, [])
@@ -192,6 +208,11 @@ export default function App() {
   )
 
   if (!activeStoreId) return <JoinStore onJoined={loadStores} />
+
+  // A scanned part/container QR takes over the screen until dismissed.
+  if (deepLink) return (
+    <Lookup storeId={activeStoreId} target={deepLink} warehouse={warehouse} onClose={() => setDeepLink(null)} />
+  )
 
   return (
     <div>
