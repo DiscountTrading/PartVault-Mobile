@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { C, MAKES, makesFor } from '../lib/constants'
 import TopTabs from '../components/TopTabs'
+import CameraCapture from '../components/CameraCapture'
 import { makeMainAndThumb } from '../lib/image'
+import { usePhotoDrag } from '../lib/reorder'
 import { identifyCar } from '../lib/ai'
 
 const MAX_CAR_PHOTOS = 8
@@ -17,6 +19,9 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
   const [search, setSearch] = useState('')
   const [carPhotos, setCarPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
   const carFileRef = useRef()
+  const [cameraOpen, setCameraOpen] = useState(false)
+  const carCamStreamRef = useRef(null)           // kept-alive camera stream (stopped when the modal closes)
+  useEffect(() => () => { carCamStreamRef.current?.getTracks().forEach(t => t.stop()) }, [])
   const [identifying, setIdentifying] = useState(false)
   const [idMsg, setIdMsg] = useState('')
 
@@ -62,22 +67,29 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
     return { url: await up(main, ''), thumb_url: await up(thumb, '_t') }
   }
 
-  const addCarPhotos = async (e) => {
+  // Compress + upload one file/blob into the car-photo grid. Shared by the album
+  // picker and the continuous camera (same CameraCapture used for part photos).
+  const ingestCar = async (file) => {
+    const id = Math.random().toString(36).slice(2)
+    setCarPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
+    try {
+      const { url, thumb_url } = await uploadCarPhoto(file)
+      setCarPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
+    } catch { setCarPhotos(p => p.filter(x => x.id !== id)) }
+  }
+  const addCarPhotos = (e) => {
     const files = Array.from(e.target.files || [])
     e.target.value = ''
-    for (const file of files) {
-      if (carPhotos.length >= MAX_CAR_PHOTOS) break
-      const id = Math.random().toString(36).slice(2)
-      setCarPhotos(p => [...p, { id, preview: URL.createObjectURL(file), uploading: true }])
-      try {
-        const { url, thumb_url } = await uploadCarPhoto(file)
-        setCarPhotos(p => p.map(x => x.id === id ? { ...x, url, thumb_url, uploading: false } : x))
-      } catch { setCarPhotos(p => p.filter(x => x.id !== id)) }
-    }
+    files.slice(0, Math.max(0, MAX_CAR_PHOTOS - carPhotos.length)).forEach(ingestCar)
   }
   const removeCarPhoto = (id) => setCarPhotos(p => p.filter(x => x.id !== id))
+  const { dragId, reg, tileProps, stop } = usePhotoDrag(setCarPhotos)
   const carUploading = carPhotos.some(p => p.uploading)
-  const closeAddCar = () => { setShowAdd(false); setForm({ make: '', model: '', year: '', purchase_price: '' }); setCarPhotos([]); setIdMsg('') }
+  const closeAddCar = () => {
+    setShowAdd(false); setCameraOpen(false)
+    carCamStreamRef.current?.getTracks().forEach(t => t.stop()); carCamStreamRef.current = null
+    setForm({ make: '', model: '', year: '', purchase_price: '' }); setCarPhotos([]); setIdMsg('')
+  }
 
   const addCar = async () => {
     if (!form.make) return
@@ -210,20 +222,27 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
             </div>
 
             {/* Car photos — shared across every part from this car */}
-            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Car photos {carPhotos.length > 0 && `(${carPhotos.length})`}</label>
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Car photos {carPhotos.length > 0 && `(${carPhotos.length}) · drag to reorder`}</label>
             <input ref={carFileRef} type="file" accept="image/*" multiple onChange={addCarPhotos} style={{ display: 'none' }} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 20 }}>
-              {carPhotos.map(p => (
-                <div key={p.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: '#fff', border: `1px solid ${C.border}` }}>
-                  <img src={p.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1 }} />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: carPhotos.length ? 10 : 0 }}>
+              {carPhotos.map((p, i) => (
+                <div key={p.id} ref={reg(p.id)} {...tileProps(p.id)}
+                  style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: '#fff', border: `1px solid ${dragId === p.id ? C.accent : C.border}`, touchAction: 'none', cursor: 'grab', opacity: dragId === p.id ? 0.85 : 1, transform: dragId === p.id ? 'scale(1.06)' : 'none', boxShadow: dragId === p.id ? '0 6px 16px rgba(0,0,0,0.25)' : 'none', transition: dragId ? 'none' : 'transform .12s', zIndex: dragId === p.id ? 5 : 1 }}>
+                  <img src={p.preview} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1, pointerEvents: 'none' }} />
                   {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>⏳</div>}
-                  <button onClick={() => removeCarPhoto(p.id)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: '18px' }}>×</button>
+                  {i === 0 && !p.uploading && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: C.accent, color: '#fff', fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '1px 0' }}>MAIN</div>}
+                  <button onPointerDown={stop} onClick={() => removeCarPhoto(p.id)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: '18px' }}>×</button>
                 </div>
               ))}
-              {carPhotos.length < MAX_CAR_PHOTOS && (
-                <button onClick={() => carFileRef.current?.click()} style={{ aspectRatio: '1', background: '#fff', border: `2px dashed ${C.border}`, borderRadius: 8, cursor: 'pointer', fontSize: 22 }}>📷</button>
-              )}
             </div>
+            {carPhotos.length < MAX_CAR_PHOTOS && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+                <button onClick={() => setCameraOpen(true)}
+                  style={{ flex: 2, padding: 12, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>📷 Camera</button>
+                <button onClick={() => carFileRef.current?.click()}
+                  style={{ flex: 1, padding: 12, background: '#fff', color: C.text, border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>🖼️ Album</button>
+              </div>
+            )}
 
             {/* AI identify make/model/year from the car photos (replaces VIN lookup) */}
             <button onClick={identifyFromPhotos} disabled={identifying || carUploading || !carPhotos.some(p => p.url)}
@@ -239,6 +258,17 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
               </button>
             </div>
           </div>
+
+          {cameraOpen && (
+            <CameraCapture
+              onCapture={ingestCar}
+              onClose={() => setCameraOpen(false)}
+              count={carPhotos.length}
+              max={MAX_CAR_PHOTOS}
+              recentThumbs={carPhotos.map(p => p.preview)}
+              keepAliveRef={carCamStreamRef}
+            />
+          )}
         </div>
       )}
     </div>

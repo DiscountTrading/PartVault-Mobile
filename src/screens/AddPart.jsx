@@ -3,6 +3,7 @@ import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
 import { warehouseConfig } from '../lib/warehouse'
 import { makeMainAndThumb, toSmallBase64 } from '../lib/image'
+import { usePhotoDrag } from '../lib/reorder'
 import { quickNameFromBase64, quickNameOptionsFromBase64 } from '../lib/ai'
 import CameraCapture from '../components/CameraCapture'
 import CameraAccessReminder from '../components/CameraAccessReminder'
@@ -33,6 +34,7 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
   const nameTried = useRef(false)
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const { dragId, reg, tileProps, stop } = usePhotoDrag(setPhotos)
 
   // Load the store's containers (tubs/buckets) when the feature is on.
   useEffect(() => {
@@ -151,7 +153,9 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
         loc_row: form.loc_row === '' || form.loc_row == null ? null : +form.loc_row,
         loc_bay: form.loc_bay === '' || form.loc_bay == null ? null : +form.loc_bay,
         loc_shelf: form.loc_shelf === '' || form.loc_shelf == null ? null : +form.loc_shelf,
-        container_id: form.container_id || null,
+        // Only sent when a container is actually chosen — so a store that hasn't
+        // applied the containers migration can still capture parts normally.
+        ...(form.container_id ? { container_id: form.container_id } : {}),
         status: 'in_stock',
         source: 'manual',
         acquired_date: new Date().toISOString().slice(0, 10),
@@ -200,18 +204,19 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
           <input ref={fileRef} type="file" accept="image/*" multiple onChange={addPhotos} style={{ display: 'none' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>Photos {photos.length > 0 && `(${photos.length}/${MAX_PHOTOS})`}</label>
-            {photos.length > 0 && <span style={{ fontSize: 11, color: C.muted }}>First = main · # = part number</span>}
+            {photos.length > 0 && <span style={{ fontSize: 11, color: C.muted }}>Drag to reorder · first = main</span>}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
             {photos.map((p, i) => (
-              <div key={p.id} style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', background: C.card, border: `1px solid ${C.border}` }}>
-                <img src={p.preview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1 }} />
+              <div key={p.id} ref={reg(p.id)} {...tileProps(p.id)}
+                style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', background: C.card, border: `1px solid ${dragId === p.id ? C.accent : C.border}`, touchAction: 'none', cursor: 'grab', opacity: dragId === p.id ? 0.85 : 1, transform: dragId === p.id ? 'scale(1.05)' : 'none', boxShadow: dragId === p.id ? '0 6px 16px rgba(0,0,0,0.25)' : 'none', transition: dragId ? 'none' : 'transform .12s', zIndex: dragId === p.id ? 5 : 1 }}>
+                <img src={p.preview} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1, pointerEvents: 'none' }} />
                 {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.3)' }}>⏳</div>}
                 {i === 0 && !p.uploading && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: C.accent, color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>MAIN</div>}
                 {pnId === p.id && !p.uploading && <div style={{ position: 'absolute', bottom: i === 0 ? 18 : 0, left: 0, right: 0, background: '#2563eb', color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>PART #</div>}
-                <button onClick={() => removePhoto(p.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>×</button>
-                {!p.uploading && <button onClick={() => setEditing({ id: p.id, source: p.preview })} style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>✎</button>}
-                {!p.uploading && <button onClick={() => setPnId(cur => cur === p.id ? null : p.id)} title="Tag as the part-number photo"
+                <button onPointerDown={stop} onClick={() => removePhoto(p.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>×</button>
+                {!p.uploading && <button onPointerDown={stop} onClick={() => setEditing({ id: p.id, source: p.preview })} style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>✎</button>}
+                {!p.uploading && <button onPointerDown={stop} onClick={() => setPnId(cur => cur === p.id ? null : p.id)} title="Tag as the part-number photo"
                   style={{ position: 'absolute', bottom: 4, right: 4, background: pnId === p.id ? '#2563eb' : 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>#</button>}
               </div>
             ))}
