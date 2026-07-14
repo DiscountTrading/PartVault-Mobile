@@ -109,6 +109,7 @@ export default function App() {
   const [activeStoreId, setActiveStoreId] = useState(null)
   const [marketplace, setMarketplace] = useState('EBAY_AU') // active store's marketplace (for region make ordering)
   const [warehouse, setWarehouse] = useState(WAREHOUSE_DEFAULTS) // optional grid location config
+  const [skuConfigured, setSkuConfigured] = useState(true)       // has the store set a SKU format? (default true = don't prompt until known)
   const [storesLoaded, setStoresLoaded] = useState(false)
   const [tab, setTab] = useState('cars')          // 'cars' | 'account'
   const [screen, setScreen] = useState('list')     // within Cars: 'list' | 'car-detail' | 'add-part'
@@ -170,10 +171,12 @@ export default function App() {
   // Active store's marketplace → regional make ordering in the car form.
   useEffect(() => {
     if (!activeStoreId) return
-    sb.from('stores').select('settings').eq('id', activeStoreId).single()
+    sb.from('stores').select('settings, sku_format_config').eq('id', activeStoreId).single()
       .then(({ data }) => {
         setMarketplace(data?.settings?.marketplace || 'EBAY_AU')
         setWarehouse({ ...WAREHOUSE_DEFAULTS, ...(data?.settings?.warehouse || {}) })
+        // Has the store set up a SKU format? (null/empty template = not set up)
+        setSkuConfigured(!!(data?.sku_format_config && data.sku_format_config.template))
       })
   }, [activeStoreId])
 
@@ -228,6 +231,7 @@ export default function App() {
           car={selectedCar}
           storeId={activeStoreId}
           warehouse={warehouse}
+          skuConfigured={skuConfigured}
           onSave={() => setScreen('car-detail')}
           onCancel={() => setScreen('car-detail')}
         />

@@ -11,7 +11,7 @@ const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
 const MAX_PHOTOS = 24
 
-export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
+export default function AddPart({ car, storeId, warehouse, skuConfigured = true, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
   const [form, setForm] = useState({ title: '', list_price: '', notes: '', location: '', loc_row: '', loc_bay: '', loc_shelf: '', container_id: '' })
   const [containers, setContainers] = useState([])
@@ -19,6 +19,7 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
+  const [skuPrompt, setSkuPrompt] = useState(false)   // "no SKU format set up" prompt
   const [editing, setEditing] = useState(null) // { id, source }
   const [pnId, setPnId] = useState(null)        // photo tagged as the part-number shot
   const [nameOptions, setNameOptions] = useState([])
@@ -129,8 +130,11 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
     }
   }
 
+  const skuAckKey = `pv_sku_ack_${storeId}`
   const save = async () => {
     if (!form.title) { setError('Add a quick label so you can find this part'); return }
+    // No SKU format set up yet → ask rather than silently proceeding.
+    if (!skuConfigured) { try { if (!localStorage.getItem(skuAckKey)) { setSkuPrompt(true); return } } catch { /* ignore */ } }
     setError('')
     setSaving(true)
     try {
@@ -357,6 +361,28 @@ export default function AddPart({ car, storeId, warehouse, onSave, onCancel }) {
         <Suspense fallback={<div style={{ position: 'fixed', inset: 0, background: '#000', color: '#fff', zIndex: 2500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Loading editor…</div>}>
           <PhotoEditor source={editing.source} onSave={onEditSave} onClose={() => setEditing(null)} />
         </Suspense>
+      )}
+
+      {/* No SKU format set up → ask how to proceed (never just error) */}
+      {skuPrompt && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, padding: 24, maxWidth: 420, width: '100%' }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: C.text, marginBottom: 8 }}>No SKU format set up yet</div>
+            <div style={{ fontSize: 14, color: C.muted, lineHeight: 1.55, marginBottom: 20 }}>
+              You haven't set a SKU format in Settings. You can keep capturing now with automatic sequential numbering (each part still gets a unique code), or set up your SKU format first.
+            </div>
+            <button
+              onClick={() => { try { localStorage.setItem(skuAckKey, '1') } catch { /* ignore */ } setSkuPrompt(false); save() }}
+              style={{ width: '100%', padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
+              Continue with sequential numbering
+            </button>
+            <a href="https://admin.partvault.app" target="partvault-admin" onClick={() => setSkuPrompt(false)}
+              style={{ display: 'block', textAlign: 'center', padding: 13, background: '#fff', color: C.text, border: `1.5px solid ${C.border}`, borderRadius: 12, fontSize: 15, fontWeight: 600, textDecoration: 'none', marginBottom: 10 }}>
+              Set up SKU format now →
+            </a>
+            <button onClick={() => setSkuPrompt(false)} style={{ width: '100%', padding: 10, background: 'none', border: 'none', color: C.muted, fontSize: 14, cursor: 'pointer' }}>Cancel</button>
+          </div>
+        </div>
       )}
     </div>
   )
