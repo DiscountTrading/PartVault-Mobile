@@ -1,5 +1,5 @@
 // Client-side image resize/compress. Phones produce 3–8 MB photos; we downscale
-// to a web/eBay-friendly main image (~1600px) plus a small thumbnail (~320px)
+// to a web/eBay-friendly main image (~2048px) plus a small thumbnail (~320px)
 // for fast list rendering. Both are JPEG.
 //
 // The main image uses ADAPTIVE quality: a quick on-device detail read picks a
@@ -78,12 +78,18 @@ export function qualityForDetail(mean) {
 // Conservative so plain-but-sharp shots don't false-trigger. Tune with real shots.
 export const SOFT_PEAK = 38
 
+// Longest-edge cap for the main (eBay) image. 2048 keeps parts sharp under
+// eBay's enlarge/zoom (older parts looked crisper than the previous 1600 cap)
+// while staying well within eBay's limits — still a single downscale, so
+// storage/bandwidth stay modest. scaledCanvas never upscales smaller sources.
+const MAIN_MAX = 2048
+
 // Returns { main, thumb } blobs for one selected file, main at adaptive quality.
 export async function makeMainAndThumb(file) {
   const img = await loadImage(file)
   let quality = 0.84
   try { quality = qualityForDetail(analyzeDetail(img).mean) } catch { /* default quality */ }
-  const main = await canvasToBlob(scaledCanvas(img, 1600).canvas, quality)
+  const main = await canvasToBlob(scaledCanvas(img, MAIN_MAX).canvas, quality)
   const thumb = await canvasToBlob(scaledCanvas(img, 320).canvas, 0.7)
   return { main, thumb }
 }
