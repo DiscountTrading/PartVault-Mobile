@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { sb } from '../lib/supabase'
 import { C, MAKES, makesFor } from '../lib/constants'
 import TopTabs from '../components/TopTabs'
+import Icon from '../components/Icon'
 import CameraCapture from '../components/CameraCapture'
 import { makeMainAndThumb } from '../lib/image'
 import { usePhotoDrag } from '../lib/reorder'
@@ -39,7 +40,7 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
         model: r.model || f.model,
         year: r.year || f.year,
       }))
-      setIdMsg(`✓ ${[r.make, r.model, r.year].filter(Boolean).join(' ')}${r.confidence === 'low' ? ' (low confidence — please check)' : ''}`)
+      setIdMsg(`Identified: ${[r.make, r.model, r.year].filter(Boolean).join(' ')}${r.confidence === 'low' ? ' (low confidence — please check)' : ''}`)
     } catch (e) { setIdMsg(e.message || 'Identify failed') }
     setIdentifying(false)
   }
@@ -141,16 +142,17 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
       <div style={{ padding: 20, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>Cars</div>
-          <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 12, minHeight: 48, padding: '0 20px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
             + Add Car
           </button>
         </div>
 
-        {/* Status filter — defaults to Active */}
+        {/* Status filter — defaults to Active. Selected chip is INK, not orange:
+            orange is reserved for actions, so it always means "this does something". */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           {[['active', 'Active'], ['complete', 'Complete'], ['all', 'All']].map(([val, label]) => (
             <button key={val} onClick={() => setStatusFilter(val)}
-              style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${statusFilter === val ? C.accent : C.border}`, background: statusFilter === val ? C.accent : '#fff', color: statusFilter === val ? '#fff' : C.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              style={{ minHeight: 48, padding: '0 18px', borderRadius: 999, border: `1.5px solid ${statusFilter === val ? C.text : C.borderControl}`, background: statusFilter === val ? C.text : '#fff', color: statusFilter === val ? '#fff' : C.muted, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>
               {label}
             </button>
           ))}
@@ -164,7 +166,7 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
 
         {!loading && visibleCars.length === 0 && (
           <div style={{ textAlign: 'center', color: C.muted, padding: 60 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🚗</div>
+            <div style={{ marginBottom: 12 }}><Icon name="car" size={44} strokeWidth={1.5} /></div>
             <div style={{ fontSize: 15 }}>{q ? 'No matching cars' : statusFilter === 'active' ? 'No active cars' : statusFilter === 'complete' ? 'No completed cars' : 'No cars yet'}</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>{q ? 'Try a different search' : 'Add a car to start adding parts'}</div>
           </div>
@@ -173,18 +175,19 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {visibleCars.map(car => (
             <button key={car.id} onClick={() => onSelectCar(car)}
-              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, textAlign: 'left', cursor: 'pointer', width: '100%' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', minHeight: 72, textAlign: 'left', cursor: 'pointer', width: '100%' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 }}>
                 <div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: C.text, display: 'flex', alignItems: 'center', gap: 8 }}>
                     {car.make} {car.model}
                     {car.status !== 'active' && (
-                      <span style={{ fontSize: 11, fontWeight: 600, color: C.muted, background: C.border, borderRadius: 6, padding: '1px 7px', textTransform: 'capitalize' }}>{car.status}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: C.muted, background: C.border, borderRadius: 6, padding: '1px 8px', textTransform: 'capitalize' }}>{car.status}</span>
                     )}
                   </div>
-                  <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>{car.year}{car.purchase_price ? ` · $${car.purchase_price}` : ''}</div>
+                  {/* The line carrying year + price — read in full sun, so --ink-2 */}
+                  <div style={{ fontSize: 15, color: C.muted, marginTop: 2 }}>{car.year}{car.purchase_price ? ` · $${car.purchase_price}` : ''}</div>
                 </div>
-                <div style={{ fontSize: 20 }}>›</div>
+                <div style={{ fontSize: 22, color: C.muted }}>›</div>
               </div>
             </button>
           ))}
@@ -194,7 +197,7 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
       {/* Add Car Modal */}
       {showAdd && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'flex-end' }}>
-          <div style={{ background: C.card, borderRadius: '20px 20px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
+          <div style={{ background: C.card, borderRadius: '16px 16px 0 0', padding: 24, width: '100%', boxSizing: 'border-box' }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: C.text, marginBottom: 20 }}>Add Car</div>
 
             <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Make *</label>
@@ -229,31 +232,31 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
                 <div key={p.id} ref={reg(p.id)} {...tileProps(p.id)}
                   style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: '#fff', border: `1px solid ${dragId === p.id ? C.accent : C.border}`, touchAction: 'none', cursor: 'grab', opacity: dragId === p.id ? 0.85 : 1, transform: dragId === p.id ? 'scale(1.06)' : 'none', boxShadow: dragId === p.id ? '0 6px 16px rgba(0,0,0,0.25)' : 'none', transition: dragId ? 'none' : 'transform .12s', zIndex: dragId === p.id ? 5 : 1 }}>
                   <img src={p.preview} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1, pointerEvents: 'none' }} />
-                  {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: '#fff' }}>⏳</div>}
+                  {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', color: '#fff', fontWeight: 800 }}>…</div>}
                   {i === 0 && !p.uploading && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: C.accent, color: '#fff', fontSize: 9, fontWeight: 700, textAlign: 'center', padding: '1px 0' }}>MAIN</div>}
-                  <button onPointerDown={stop} onClick={() => removeCarPhoto(p.id)} style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 18, height: 18, fontSize: 11, cursor: 'pointer', padding: 0, lineHeight: '18px' }}>×</button>
+                  <button onPointerDown={stop} onClick={() => removeCarPhoto(p.id)} aria-label="Remove photo" style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 32, height: 32, minHeight: 32, fontSize: 15, cursor: 'pointer', padding: 0, lineHeight: '32px' }}>×</button>
                 </div>
               ))}
             </div>
             {carPhotos.length < MAX_CAR_PHOTOS && (
               <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
                 <button onClick={() => setCameraOpen(true)}
-                  style={{ flex: 2, padding: 12, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>📷 Camera</button>
+                  style={{ flex: 2, minHeight: 48, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer' }}><Icon name="camera" /> Camera</button>
                 <button onClick={() => carFileRef.current?.click()}
-                  style={{ flex: 1, padding: 12, background: '#fff', color: C.text, border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>🖼️ Album</button>
+                  style={{ flex: 1, minHeight: 48, background: '#fff', color: C.text, border: `1.5px solid ${C.borderControl}`, borderRadius: 12, fontSize: 16, fontWeight: 600, cursor: 'pointer' }}><Icon name="image" /> Album</button>
               </div>
             )}
 
             {/* AI identify make/model/year from the car photos (replaces VIN lookup) */}
             <button onClick={identifyFromPhotos} disabled={identifying || carUploading || !carPhotos.some(p => p.url)}
-              style={{ width: '100%', padding: 12, background: '#fff', border: `1.5px solid #7c3aed`, color: '#7c3aed', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: idMsg ? 6 : 20, opacity: (identifying || carUploading || !carPhotos.some(p => p.url)) ? 0.5 : 1 }}>
-              {identifying ? '⏳ Identifying…' : '✨ Identify car from photos'}
+              style={{ width: '100%', minHeight: 48, background: '#fff', border: `1.5px solid ${C.borderControl}`, color: C.text, borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', marginBottom: idMsg ? 6 : 20, opacity: (identifying || carUploading || !carPhotos.some(p => p.url)) ? 0.5 : 1 }}>
+              {identifying ? 'Identifying…' : <><Icon name="sparkle" /> Identify car from photos</>}
             </button>
-            {idMsg && <div style={{ fontSize: 11, color: idMsg.startsWith('✓') ? C.green : C.red, marginBottom: 16 }}>{idMsg}</div>}
+            {idMsg && <div style={{ fontSize: 13, color: idMsg.startsWith('Identified') ? C.green : C.red, marginBottom: 16 }}>{idMsg}</div>}
 
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={closeAddCar} style={{ flex: 1, padding: 14, background: '#fff', border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={addCar} disabled={saving || carUploading || !form.make} style={{ flex: 2, padding: 14, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', opacity: (saving || carUploading || !form.make) ? 0.6 : 1 }}>
+              <button onClick={closeAddCar} style={{ flex: 1, minHeight: 56, background: '#fff', border: `1.5px solid ${C.borderControl}`, borderRadius: 12, fontSize: 17, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={addCar} disabled={saving || carUploading || !form.make} style={{ flex: 2, minHeight: 56, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 17, fontWeight: 700, cursor: 'pointer', opacity: (saving || carUploading || !form.make) ? 0.6 : 1 }}>
                 {saving ? 'Saving…' : carUploading ? 'Processing…' : 'Add Car'}
               </button>
             </div>

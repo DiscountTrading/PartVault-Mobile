@@ -9,6 +9,7 @@ import Account from './screens/Account'
 import Collect from './screens/Collect'
 import Scan from './screens/Scan'
 import Lookup from './screens/Lookup'
+import Icon from './components/Icon'
 
 // A scanned QR opens app.partvault.app/p/<sku> or /c/<code>. Capture that path
 // once at boot (then clean the URL so a refresh doesn't re-trigger it) and let
@@ -39,12 +40,12 @@ function LockScreen({ userId, email, onUnlock }) {
   }
   return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
+      <div style={{ marginBottom: 12 }}><Icon name="lock" size={48} strokeWidth={1.5} /></div>
       <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 6 }}>PartVault is locked</div>
       <div style={{ fontSize: 14, color: C.muted, marginBottom: 22 }}>{email}</div>
       <button onClick={tryUnlock} disabled={busy}
         style={{ padding: '14px 28px', background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: busy ? 0.6 : 1 }}>
-        {busy ? 'Unlocking…' : '🔓 Unlock with Face ID'}
+        {busy ? 'Unlocking…' : <><Icon name="unlock" /> Unlock with Face ID</>}
       </button>
       {err && <div style={{ color: C.red, fontSize: 13, marginTop: 14, textAlign: 'center', maxWidth: 280 }}>{err}</div>}
       <button onClick={() => sb.auth.signOut()} style={{ marginTop: 18, background: 'none', border: 'none', color: C.muted, fontSize: 13, cursor: 'pointer' }}>Sign out instead</button>
@@ -67,7 +68,7 @@ function JoinStore({ onJoined }) {
   return (
     <div style={{ minHeight: '100vh', background: C.bg, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ width: '100%', maxWidth: 360, textAlign: 'center' }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🏪</div>
+        <div style={{ marginBottom: 12 }}><Icon name="store" size={40} strokeWidth={1.5} /></div>
         <div style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 6 }}>Join a store</div>
         <div style={{ fontSize: 14, color: C.muted, marginBottom: 20, lineHeight: 1.5 }}>Enter the join code your store owner gave you.</div>
         <input value={code} onChange={e => setCode(e.target.value.toUpperCase())} onKeyDown={e => e.key === 'Enter' && join()}
@@ -96,8 +97,8 @@ function DesktopNotice() {
   if (!wide || dismissed) return null
   return (
     <div style={{ background: '#fffbeb', borderBottom: '1px solid #fcd34d', padding: '9px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, fontSize: 13, color: '#1c1c1e' }}>
-      <span>📱 The PartVault field app is built for phones. On a computer, the <a href="https://admin.partvault.app" target="partvault-admin" style={{ color: C.accent, fontWeight: 700 }}>Admin panel</a> works better.</span>
-      <button onClick={() => setDismissed(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9a8c66', fontSize: 14, lineHeight: 1 }}>✕</button>
+      <span><Icon name="phone" /> The PartVault field app is built for phones. On a computer, the <a href="https://admin.partvault.app" target="partvault-admin" style={{ color: C.accent, fontWeight: 700 }}>Admin panel</a> works better.</span>
+      <button onClick={() => setDismissed(true)} aria-label="Dismiss" style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, minHeight: 48, padding: '0 8px' }}><Icon name="close" size={16} /></button>
     </div>
   )
 }

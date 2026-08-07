@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
+import Icon from '../components/Icon'
 
 const STATUS_COLORS = { in_stock: C.blue, listed: C.accent, sold: C.green, scrapped: C.muted }
 const STATUS_LABELS = { in_stock: 'In Stock', listed: 'Listed', sold: 'Sold', scrapped: 'Scrapped' }
@@ -110,7 +111,7 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
 
         {!loading && parts.length === 0 && (
           <div style={{ textAlign: 'center', color: C.muted, padding: 60 }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>🔧</div>
+            <div style={{ marginBottom: 12 }}><Icon name="gear" size={36} strokeWidth={1.5} /></div>
             <div style={{ fontSize: 15 }}>No parts yet</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>Tap Add Part to get started</div>
           </div>
@@ -124,7 +125,7 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
               <div key={p.id} onClick={() => openEdit(p)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}>
                 {thumb
                   ? <img src={thumb} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }} />
-                  : <div style={{ width: 56, height: 56, background: C.bg, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🔧</div>
+                  : <div style={{ width: 56, height: 56, background: C.bg, borderRadius: 8, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-3)' }}><Icon name='gear' size={22} /></div>
                 }
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
@@ -135,7 +136,7 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   {isAssessing(p)
-                    ? <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}>✨ Assessing…</div>
+                    ? <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}><Icon name="sparkle" size={12} /> Assessing…</div>
                     : <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>${p.list_price}</div>}
                   <div style={{ fontSize: 11, fontWeight: 600, color: statusColor, marginTop: 2 }}>{STATUS_LABELS[p.status] || p.status}</div>
                 </div>

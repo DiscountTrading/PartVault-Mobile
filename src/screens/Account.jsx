@@ -3,6 +3,7 @@ import { sb } from '../lib/supabase'
 import { C, APP_VERSION } from '../lib/constants'
 import { biometricSupported, isEnabledFor, enableBiometric, disableBiometric } from '../lib/biometric'
 import TopTabs from '../components/TopTabs'
+import Icon from '../components/Icon'
 
 export default function Account({ email, userId, stores = [], activeStoreId, setActiveStore, onCars, onCollect, onAccount, onScan }) {
   const active = stores.find(s => s.store_id === activeStoreId)
@@ -71,10 +72,10 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
 
         {/* Where listing happens */}
         <div style={{ marginTop: 20, padding: 14, background: '#f0f6ff', border: '1px solid #cfe0ff', borderRadius: 12, fontSize: 13, color: C.text, lineHeight: 1.5 }}>
-          📋 Use this app to capture parts in the yard. Reviewing and listing them to eBay is done from the PartVault admin on a computer.
+          <Icon name="clipboard" /> Use this app to capture parts in the yard. Reviewing and listing them to eBay is done from the PartVault admin on a computer.
           <a href="https://admin.partvault.app" target="partvault-admin"
             style={{ display: 'block', marginTop: 12, textAlign: 'center', background: '#fff', color: C.accent, border: `1.5px solid ${C.accent}`, borderRadius: 10, padding: '11px', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
-            🖥️ Open Admin Panel ↗
+            <Icon name="monitor" /> Open Admin Panel ↗
           </a>
         </div>
 
@@ -84,7 +85,7 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
             <label style={labelStyle}>Security</label>
             <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div>
-                <div style={{ fontSize: 15, color: C.text, fontWeight: 600 }}>🔒 Face ID unlock</div>
+                <div style={{ fontSize: 15, color: C.text, fontWeight: 600 }}><Icon name="lock" size={15} /> Face ID unlock</div>
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{bioOn ? 'On — Face ID is required to open the app.' : 'Require Face ID to open the app on this device.'}</div>
               </div>
               <button onClick={toggleBio} disabled={bioBusy || !userId}
@@ -106,7 +107,7 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
             </div>
             <button onClick={forceRefresh} disabled={refreshing}
               style={{ padding: '9px 16px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', background: C.accent, color: '#fff', opacity: refreshing ? 0.6 : 1 }}>
-              {refreshing ? '…' : '🔄 Refresh'}
+              {refreshing ? '…' : <><Icon name="refresh" size={14} /> Refresh</>}
             </button>
           </div>
         </div>

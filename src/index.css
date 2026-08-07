@@ -1,4 +1,82 @@
+/* ── PartVault design tokens ──────────────────────────────────────────────────
+   One :root block, shared verbatim by the marketing site and this field app.
+   The user is in a salvage yard, in direct sun, possibly wearing gloves:
+   contrast targets AAA (7:1) for anything read outdoors, tap targets are 48px,
+   and the hi-vis amber is reserved for alert chips only. */
+:root{
+  /* surfaces: warm, R >= G >= B */
+  --canvas:#FFFFFF;
+  --s0:#F5F4F0;          /* page ground */
+  --s1:#ECEAE2;          /* bands, list headers */
+  --s2:#E2DFD4;          /* wells, icon chips */
+  --s3:#D6D2C4;          /* pressed */
+
+  /* lines: decorative vs control-identifying (WCAG 1.4.11 needs 3:1) */
+  --line:#D6D2C4;
+  --line-control:#8E8674;
+
+  /* ink: darker than a desk product — glare adds veiling luminance */
+  --ink:#17150F;         /* 16.58:1 on --s0 */
+  --ink-2:#4A453B;       /*  8.65:1 — safe outdoors */
+  --ink-3:#6E6757;       /*  5.10:1 — indoor/secondary only */
+  --ink-4:#A39B88;       /*  2.51:1 — NON-TEXT only */
+
+  /* accent: same hue as the brand orange, two steps darker so white passes */
+  --accent:#BD400B;        /* white on it 5.38:1 */
+  --accent-hover:#9E350A;
+  --accent-soft:#FBEDE4;
+  --accent-line:#EFD3C2;
+  --accent-on-dark:#FF8A4C; /* 7.81:1 on --frame */
+
+  /* hi-vis signal: alert chips ONLY — ink on it, never white, never as text */
+  --hivis:#FFB100;
+
+  /* stock semantics — verified on chip, on white, and on --s0 */
+  --pos:#2C6B3E;  --pos-bg:#E5EFE7;
+  --warn:#8A5B0F; --warn-bg:#F7EEDC;
+  --neg:#A33128;  --neg-bg:#F8E7E4;
+  --info:#2B5378; --info-bg:#E7EDF3;
+  --neut:#635C51; --neut-bg:#EFEDE7;
+
+  --frame:#17150F;       /* app header */
+
+  --tap:48px;            /* the most important token in this product */
+
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-media:20px; --r-pill:999px;
+  --container:1200px; --gutter:24px; --section-y:96px;
+
+  --shadow-card:0 0 0 1px var(--line), 0 1px 2px rgba(23,21,15,.05);
+  --shadow-media:0 0 0 1px var(--line), 0 2px 4px rgba(23,21,15,.05),
+                 0 18px 40px -14px rgba(23,21,15,.16);
+  --focus:0 0 0 3px rgba(189,64,11,.35);
+
+  --sans:"Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+@media (max-width:820px){ :root{ --section-y:56px; } }
+
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
-body { font-family: system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+
+body{
+  font-family:var(--sans);
+  font-size:16px; line-height:1.6; letter-spacing:-.006em;
+  font-feature-settings:"calt","kern","liga","ss03","cv05";
+  -webkit-font-smoothing:antialiased;
+  background:var(--s0); color:var(--ink);
+  /* prices, years, SKUs, counts everywhere — columns of figures line up */
+  font-variant-numeric: tabular-nums;
+}
+
 input, select, textarea, button { font: inherit; }
+
+/* Gloves. 48px minimum on everything interactive; !important where the rule
+   must win over inline styles. Inputs under 16px make iOS zoom the page. */
+button, [role="button"], input, select, textarea{
+  min-height: var(--tap);
+}
+input, select, textarea{
+  font-size: 16px !important;
+  border-color: var(--line-control) !important;   /* 3.28:1 — identifies the control */
+}
+
+:focus-visible{ outline:none; box-shadow:var(--focus); }

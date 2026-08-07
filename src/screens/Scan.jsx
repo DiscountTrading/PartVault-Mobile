@@ -3,6 +3,7 @@ import jsQR from 'jsqr'
 import { sb } from '../lib/supabase'
 import { C } from '../lib/constants'
 import { warehouseConfig, formatGridLoc } from '../lib/warehouse'
+import Icon from '../components/Icon'
 import TopTabs from '../components/TopTabs'
 
 // Phone-as-scanner. Reads the QR labels the admin prints (containers → /c/<code>,
@@ -186,8 +187,8 @@ export default function Scan({ storeId, activeStore, warehouse, onCars, onCollec
 
         {/* Mode toggle */}
         <div style={{ display: 'flex', gap: 8, margin: '10px 0 14px' }}>
-          {modeBtn('in', 'Putting away', '📥')}
-          {modeBtn('out', 'Pulling', '📤')}
+          {modeBtn('in', 'Putting away', <Icon name='inbox' size={15} />)}
+          {modeBtn('out', 'Pulling', <Icon name='upload' size={15} />)}
         </div>
 
         {/* Active bucket banner (in "putting away") */}
@@ -195,9 +196,9 @@ export default function Scan({ storeId, activeStore, warehouse, onCars, onCollec
           <div style={{ marginBottom: 12, padding: '12px 14px', borderRadius: 12, border: `1.5px solid ${bucket ? C.accent : C.border}`, background: bucket ? '#fff7ed' : '#fff' }}>
             {bucket ? (
               <>
-                <div style={{ fontSize: 15, fontWeight: 800, color: C.accent }}>🪣 {[bucket.code, bucket.name].filter(Boolean).join(' · ')}</div>
+                <div style={{ fontSize: 15, fontWeight: 800, color: C.accent }}><Icon name="box" size={15} /> {[bucket.code, bucket.name].filter(Boolean).join(' · ')}</div>
                 <div style={{ fontSize: 12.5, color: C.muted, marginTop: 3 }}>
-                  {bucketCount} part{bucketCount === 1 ? '' : 's'} inside{formatGridLoc(bucket, warehouse) ? ` · 📍 ${formatGridLoc(bucket, warehouse)}` : ''}
+                  {bucketCount} part{bucketCount === 1 ? '' : 's'} inside{formatGridLoc(bucket, warehouse) ? ` · ${formatGridLoc(bucket, warehouse)}` : ''}
                 </div>
                 <button onClick={() => { setBucket(null); setBucketCount(0) }} style={{ marginTop: 8, background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, padding: '4px 10px', fontSize: 12, color: C.muted, cursor: 'pointer' }}>Change {wc.containerLabel.toLowerCase()}</button>
               </>
@@ -215,7 +216,7 @@ export default function Scan({ storeId, activeStore, warehouse, onCars, onCollec
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
             <div style={{ width: '58%', aspectRatio: '1', border: '3px solid rgba(255,255,255,0.9)', borderRadius: 16, boxShadow: '0 0 0 2000px rgba(0,0,0,0.28)' }} />
           </div>
-          <button onClick={toggleTorch} style={{ position: 'absolute', right: 10, bottom: 10, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: 20, padding: '8px 12px', fontSize: 13, cursor: 'pointer' }}>{torch ? '🔦 On' : '🔦'}</button>
+          <button onClick={toggleTorch} style={{ position: 'absolute', right: 10, bottom: 10, background: 'rgba(0,0,0,0.5)', color: '#fff', border: 'none', borderRadius: 20, padding: '8px 12px', fontSize: 13, cursor: 'pointer' }}>{torch ? <><Icon name='torch' size={15} /> On</> : <Icon name='torch' size={15} />}</button>
         </div>
         {error && <div style={{ color: C.red, fontSize: 13, marginTop: 10 }}>{error}</div>}
         <div style={{ fontSize: 12, color: C.muted, marginTop: 8, textAlign: 'center' }}>Point at a printed QR — it scans automatically.</div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { C } from '../lib/constants'
+import Icon from './Icon'
 
 // Nudges the user to set the site's camera permission to "Allow" so they aren't
 // asked every time. Checks the Permissions API where available (Chrome/Android);
@@ -52,7 +53,7 @@ export default function CameraAccessReminder() {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 3000, display: 'flex', alignItems: 'flex-end' }} onClick={gotIt}>
       <div onClick={e => e.stopPropagation()} style={{ background: C.bg, borderTopLeftRadius: 18, borderTopRightRadius: 18, padding: 20, paddingBottom: 'calc(20px + env(safe-area-inset-bottom))', width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 8 }}>📷 Allow camera access</div>
+        <div style={{ fontSize: 17, fontWeight: 800, color: C.text, marginBottom: 8 }}><Icon name="camera" size={16} /> Allow camera access</div>
         <div style={{ fontSize: 14, color: C.text, lineHeight: 1.5, marginBottom: 12 }}>
           {denied
             ? <>Camera access looks <b>blocked</b>, so the prompt won't reappear. Set it to <b>Allow</b> manually:</>
@@ -60,11 +61,11 @@ export default function CameraAccessReminder() {
         </div>
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', fontSize: 13, color: C.text, lineHeight: 1.6, marginBottom: 16 }}>
           <div><b>iPhone (Safari):</b> tap <b>aA</b> in the address bar → <b>Website Settings</b> → <b>Camera → Allow</b>. Using it from a Safari tab remembers this better than the home-screen icon.</div>
-          <div style={{ marginTop: 8 }}><b>Android (Chrome):</b> tap the <b>🔒</b> in the address bar → <b>Permissions → Camera → Allow</b>.</div>
+          <div style={{ marginTop: 8 }}><b>Android (Chrome):</b> tap the padlock in the address bar → <b>Permissions → Camera → Allow</b>.</div>
         </div>
         {!denied && (
           <button onClick={requestAccess} disabled={busy} style={{ ...btn(C.accent, '#fff'), width: '100%', marginBottom: 10, opacity: busy ? 0.6 : 1 }}>
-            {busy ? 'Requesting…' : '📷 Allow camera'}
+            {busy ? 'Requesting…' : <><Icon name='camera' /> Allow camera</>}
           </button>
         )}
         <div style={{ display: 'flex', gap: 10 }}>

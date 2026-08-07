@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { C } from '../lib/constants'
 import { gradientStats, SOFT_PEAK } from '../lib/image'
+import Icon from './Icon'
 
 const ADJUST_KEY = 'pv_cam_adjust'
 const DEFAULTS = { zoom: 1, brightness: 1, contrast: 1, saturate: 1 }
@@ -232,10 +233,10 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
 
       {/* Top bar */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: 'calc(16px + env(safe-area-inset-top))' }}>
-        <button onClick={onClose} style={btn}>✓ Done {count > 0 ? `(${count})` : ''}</button>
+        <button onClick={onClose} style={btn}>Done {count > 0 ? `(${count})` : ''}</button>
         <div style={{ color: '#fff', background: 'rgba(0,0,0,0.55)', borderRadius: 22, padding: '8px 16px', fontWeight: 800 }}>{count}/{max}</div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => setShowAdjust(s => !s)} style={{ ...btn, background: showAdjust ? C.accent : 'rgba(0,0,0,0.55)' }}>⚙︎ Adjust</button>
+          <button onClick={() => setShowAdjust(s => !s)} style={{ ...btn, background: showAdjust ? C.accent : 'rgba(0,0,0,0.55)' }}><Icon name="gear" size={13} /> Adjust</button>
           <button onClick={flip} style={btn}>⟲ Flip</button>
         </div>
       </div>
@@ -257,7 +258,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
             </div>
           ))}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>✓ Saved as your default</span>
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11 }}>Saved as your default</span>
             <button onClick={resetAdj} style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Reset</button>
           </div>
         </div>
@@ -284,7 +285,7 @@ export default function CameraCapture({ onCapture, onClose, count = 0, max = 24,
           <img src={pending.url} alt="" style={{ flex: 1, width: '100%', objectFit: 'contain' }} />
           {pending.soft && (
             <div style={{ background: 'rgba(217,119,6,0.95)', color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'center', padding: '10px 14px' }}>
-              ⚠️ This shot looks soft — retake for a sharper part number
+              <Icon name="warning" size={13} /> This shot looks soft — retake for a sharper part number
             </div>
           )}
           <div style={{ display: 'flex', gap: 12, padding: 24, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>

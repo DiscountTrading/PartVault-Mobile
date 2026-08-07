@@ -3,6 +3,7 @@ import { sb } from '../lib/supabase'
 import { C } from '../lib/constants'
 import TopTabs from '../components/TopTabs'
 import WarehouseMap from '../components/WarehouseMap'
+import Icon from '../components/Icon'
 import { hasGridLoc, formatGridLoc } from '../lib/warehouse'
 
 // "Collect" — a yard pick-list of sold parts that still need pulling from stock.
@@ -116,7 +117,7 @@ export default function Collect({ storeId, activeStore, warehouse, onCars, onCol
 
         {!loading && items.length === 0 && (
           <div style={{ textAlign: 'center', color: C.muted, padding: 60 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+            <div style={{ marginBottom: 12 }}><Icon name="check" size={40} strokeWidth={1.5} /></div>
             <div style={{ fontSize: 15 }}>All caught up</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>No sold parts waiting to be collected.</div>
           </div>
@@ -131,29 +132,29 @@ export default function Collect({ storeId, activeStore, warehouse, onCars, onCol
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
               {it.thumb
                 ? <img src={it.thumb} alt="" style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }} />
-                : <div style={{ width: 56, height: 56, borderRadius: 10, background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📦</div>}
+                : <div style={{ width: 56, height: 56, borderRadius: 10, background: C.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-3)', flexShrink: 0 }}><Icon name='box' size={22} /></div>}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</div>
                 {gridLoc
                   ? <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, background: '#fff7ed', border: `1px solid ${C.accent}`, color: C.accent, fontSize: 13, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}>
-                      <span>🗺️</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{gridLoc}</span>
+                      <Icon name="map" size={14} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{gridLoc}</span>
                     </div>
                   : it.location
                   ? <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e', fontSize: 13, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}>
-                      <span>📍</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.location}</span>
+                      <Icon name="pin" size={14} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.location}</span>
                     </div>
-                  : <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: 'italic' }}>📍 No location set</div>}
-                {it.container && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, marginLeft: gridLoc || it.location ? 6 : 0, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', fontSize: 12.5, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}><span>🪣</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[it.container.code, it.container.name].filter(Boolean).join(' · ')}</span></div>}
-                {gridLoc && it.location && <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>📍 {it.location}</div>}
+                  : <div style={{ fontSize: 11, color: C.muted, marginTop: 4, fontStyle: 'italic' }}><Icon name="pin" size={13} /> No location set</div>}
+                {it.container && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, marginLeft: gridLoc || it.location ? 6 : 0, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', fontSize: 12.5, fontWeight: 800, borderRadius: 8, padding: '3px 9px', maxWidth: '100%', overflow: 'hidden' }}><Icon name="box" size={13} /><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{[it.container.code, it.container.name].filter(Boolean).join(' · ')}</span></div>}
+                {gridLoc && it.location && <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}><Icon name="pin" size={13} /> {it.location}</div>}
                 <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>
                   {it.sku ? <span style={{ fontFamily: 'monospace', fontWeight: 700, color: C.text }}>{it.sku}</span> : 'no SKU'} · sold {fmtDate(it.soldAt)}
                 </div>
-                {it.car && <div style={{ fontSize: 12, color: C.accent, fontWeight: 600, marginTop: 2 }}>🚗 {it.car}</div>}
+                {it.car && <div style={{ fontSize: 12, color: C.accent, fontWeight: 600, marginTop: 2 }}><Icon name="car" size={14} /> {it.car}</div>}
                 {(it.buyer || it.city) && <div style={{ fontSize: 11, color: C.muted, marginTop: 1 }}>{[it.buyer, it.city].filter(Boolean).join(' · ')}</div>}
               </div>
               <button onClick={() => markCollected(it.saleId)} disabled={busyId === it.saleId}
                 style={{ flexShrink: 0, background: C.green, color: '#fff', border: 'none', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer', opacity: busyId === it.saleId ? 0.6 : 1 }}>
-                {busyId === it.saleId ? '…' : '✓ Collected'}
+                {busyId === it.saleId ? '…' : <><Icon name="check" size={15} /> Collected</>}
               </button>
               </div>
               {showMap && (

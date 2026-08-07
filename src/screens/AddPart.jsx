@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
 import { C, CATEGORY_NAMES } from '../lib/constants'
 import { warehouseConfig } from '../lib/warehouse'
+import Icon from '../components/Icon'
 import { makeMainAndThumb, toSmallBase64 } from '../lib/image'
 import { usePhotoDrag } from '../lib/reorder'
 import { quickNameFromBase64, quickNameOptionsFromBase64 } from '../lib/ai'
@@ -215,11 +216,11 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
               <div key={p.id} ref={reg(p.id)} {...tileProps(p.id)}
                 style={{ position: 'relative', aspectRatio: '1', borderRadius: 10, overflow: 'hidden', background: C.card, border: `1px solid ${dragId === p.id ? C.accent : C.border}`, touchAction: 'none', cursor: 'grab', opacity: dragId === p.id ? 0.85 : 1, transform: dragId === p.id ? 'scale(1.05)' : 'none', boxShadow: dragId === p.id ? '0 6px 16px rgba(0,0,0,0.25)' : 'none', transition: dragId ? 'none' : 'transform .12s', zIndex: dragId === p.id ? 5 : 1 }}>
                 <img src={p.preview} alt="" draggable={false} style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: p.uploading ? 0.5 : 1, pointerEvents: 'none' }} />
-                {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.3)' }}>⏳</div>}
+                {p.uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#fff', background: 'rgba(0,0,0,0.3)', fontWeight: 800 }}>…</div>}
                 {i === 0 && !p.uploading && <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: C.accent, color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>MAIN</div>}
                 {pnId === p.id && !p.uploading && <div style={{ position: 'absolute', bottom: i === 0 ? 18 : 0, left: 0, right: 0, background: '#2563eb', color: '#fff', fontSize: 10, fontWeight: 700, textAlign: 'center', padding: '2px 0' }}>PART #</div>}
                 <button onPointerDown={stop} onClick={() => removePhoto(p.id)} style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 13, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>×</button>
-                {!p.uploading && <button onPointerDown={stop} onClick={() => setEditing({ id: p.id, source: p.preview })} style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>✎</button>}
+                {!p.uploading && <button onPointerDown={stop} onClick={() => setEditing({ id: p.id, source: p.preview })} style={{ position: 'absolute', top: 4, left: 4, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, cursor: 'pointer', padding: 0, lineHeight: '22px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name='edit' size={12} /></button>}
                 {!p.uploading && <button onPointerDown={stop} onClick={() => setPnId(cur => cur === p.id ? null : p.id)} title="Tag as the part-number photo"
                   style={{ position: 'absolute', bottom: 4, right: 4, background: pnId === p.id ? '#2563eb' : 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, lineHeight: '22px' }}>#</button>}
               </div>
@@ -228,9 +229,9 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
           {photos.length < MAX_PHOTOS && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button onClick={() => setCameraOpen(true)}
-                style={{ flex: 2, padding: 13, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>📷 Camera</button>
+                style={{ flex: 2, padding: 13, background: C.accent, color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}><Icon name='camera' /> Camera</button>
               <button onClick={() => fileRef.current?.click()}
-                style={{ flex: 1, padding: 13, background: C.card, color: C.text, border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>🖼️ Album</button>
+                style={{ flex: 1, padding: 13, background: C.card, color: C.text, border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}><Icon name='image' /> Album</button>
             </div>
           )}
         </div>
@@ -238,11 +239,11 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
         {/* Quick reference label */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
           <label style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>
-            Part name * {namingAI && <span style={{ color: '#7c3aed', fontWeight: 600 }}>· ✨ naming…</span>}
+            Part name * {namingAI && <span style={{ color: '#7c3aed', fontWeight: 600 }}>· naming…</span>}
           </label>
           <button type="button" onClick={showNameOptions} disabled={nameOptsBusy}
             style={{ background: 'none', border: 'none', color: C.accent, fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: 0, opacity: nameOptsBusy ? 0.6 : 1 }}>
-            {nameOptsBusy ? '✨ …' : '✨ Name options'}
+            {nameOptsBusy ? '…' : <><Icon name='sparkle' size={13} /> Name options</>}
           </button>
         </div>
         <input value={form.title} onChange={e => { nameTried.current = true; set('title', e.target.value) }}
@@ -254,9 +255,9 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
           <div style={{ border: `1px solid #ddd6fe`, background: '#f7f5ff', borderRadius: 8, padding: 8, marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, padding: '0 2px' }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{nameOptsBusy ? 'Finding name options…' : 'Tap a name to use it'}</span>
-              <button type="button" onClick={() => setShowNameOpts(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}>✕</button>
+              <button type="button" onClick={() => setShowNameOpts(false)} style={{ background: 'none', border: 'none', color: C.muted, fontSize: 12, cursor: 'pointer' }}><Icon name='close' size={13} /></button>
             </div>
-            {nameOptsBusy && !nameOptions.length && <div style={{ fontSize: 12, color: C.muted, padding: '4px 6px' }}>⏳ Suggesting names…</div>}
+            {nameOptsBusy && !nameOptions.length && <div style={{ fontSize: 12, color: C.muted, padding: '4px 6px' }}>Suggesting names…</div>}
             {nameOptions.map((t, i) => (
               <div key={i} onClick={() => pickName(t)}
                 style={{ cursor: 'pointer', background: '#fff', border: `1px solid ${form.title === t ? C.accent : C.border}`, borderRadius: 6, padding: '8px 10px', marginBottom: 6, fontSize: 14, lineHeight: 1.4, color: C.text }}>
@@ -266,7 +267,7 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
           </div>
         )}
 
-        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>AI pre-fills this from the photo — tap ✨ Name options for alternatives, or edit it yourself.</div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 14 }}>AI pre-fills this from the photo — tap Name options for alternatives, or edit it yourself.</div>
 
         {/* Price (optional) */}
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>List price (optional)</label>
@@ -295,7 +296,7 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
           )
           return (
             <div style={{ marginBottom: 14 }}>
-              <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>🗺️ Warehouse spot (optional)</label>
+              <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}><Icon name='map' size={13} /> Warehouse spot (optional)</label>
               <div style={{ display: 'flex', gap: 8 }}>
                 {axis('loc_row', wc.rowLabel, wc.rows)}
                 {axis('loc_bay', wc.bayLabel, wc.bays)}
@@ -308,7 +309,7 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
         {/* Container (tub/bucket) — assign at capture, inherit its home spot */}
         {warehouse?.containers && (
           <>
-            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>🪣 {warehouseConfig(warehouse).containerLabel} (optional)</label>
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}><Icon name='box' size={13} /> {warehouseConfig(warehouse).containerLabel} (optional)</label>
             <select value={form.container_id || ''} onChange={e => {
               const id = e.target.value || ''
               const ct = containers.find(c => c.id === id)
@@ -332,17 +333,17 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
         {/* AI assess toggle */}
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: C.text, background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
           <input type="checkbox" checked={aiAssess} onChange={e => setAiAssess(e.target.checked)} style={{ width: 18, height: 18 }} />
-          <span>✨ Assess with AI after saving<br /><span style={{ fontSize: 11, color: C.muted }}>Runs in the background so it's ready when you're back at the office.</span></span>
+          <span><Icon name='sparkle' size={14} /> Assess with AI after saving<br /><span style={{ fontSize: 11, color: C.muted }}>Runs in the background so it's ready when you're back at the office.</span></span>
         </label>
 
-        {error && <div style={{ color: C.red, fontSize: 13, marginBottom: 12 }}>✗ {error}</div>}
+        {error && <div style={{ color: C.red, fontSize: 13, marginBottom: 12 }}>{error}</div>}
       </div>
 
       {/* Fixed bottom button */}
       <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, padding: '12px 20px', background: C.bg, borderTop: `1px solid ${C.border}` }}>
         <button onClick={save} disabled={saving || anyUploading || !form.title}
           style={{ width: '100%', padding: 16, background: C.accent, color: '#fff', border: 'none', borderRadius: 12, fontSize: 16, fontWeight: 700, cursor: 'pointer', opacity: (saving || anyUploading || !form.title) ? 0.6 : 1 }}>
-          {saving ? 'Saving…' : anyUploading ? 'Processing photos…' : '✓ Save Part'}
+          {saving ? 'Saving…' : anyUploading ? 'Processing photos…' : 'Save Part'}
         </button>
       </div>
 

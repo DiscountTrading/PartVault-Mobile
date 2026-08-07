@@ -3,6 +3,7 @@ import { sb } from '../lib/supabase'
 import { C } from '../lib/constants'
 import { warehouseConfig, formatGridLoc, hasGridLoc } from '../lib/warehouse'
 import WarehouseMap from '../components/WarehouseMap'
+import Icon from '../components/Icon'
 
 // Resolves a scanned QR deep link to a real screen: /p/<sku> → part detail,
 // /c/<code> → container + its contents. Read-only "what is this / where is it".
@@ -71,7 +72,7 @@ export default function Lookup({ storeId, target, warehouse, onClose }) {
   if (state.error) return wrap(<div style={{ color: C.red }}>{state.error}</div>)
   if (state.notFound) return wrap(
     <div style={{ textAlign: 'center', padding: 40 }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>🤔</div>
+      <div style={{ marginBottom: 12 }}><Icon name="question" size={40} strokeWidth={1.5} /></div>
       <div style={{ fontSize: 15, color: C.text }}>Nothing found for <b>{target.value}</b></div>
       <div style={{ fontSize: 13, color: C.muted, marginTop: 6 }}>The label may belong to a different account, or the item was deleted.</div>
     </div>
@@ -93,7 +94,7 @@ export default function Lookup({ storeId, target, warehouse, onClose }) {
         <div style={{ display: 'flex', gap: 14 }}>
           {state.thumb
             ? <img src={state.thumb} alt="" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 12, flexShrink: 0 }} />
-            : <div style={{ width: 96, height: 96, borderRadius: 12, background: C.card, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 30, flexShrink: 0 }}>📦</div>}
+            : <div style={{ width: 96, height: 96, borderRadius: 12, background: C.card, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-3)', flexShrink: 0 }}><Icon name='box' size={30} /></div>}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: C.text, lineHeight: 1.25 }}>{p.title || 'Untitled part'}</div>
             <div style={{ fontSize: 13, color: C.muted, marginTop: 4, fontFamily: 'monospace', fontWeight: 700 }}>{p.sku || 'no SKU'}</div>
@@ -104,13 +105,13 @@ export default function Lookup({ storeId, target, warehouse, onClose }) {
           </div>
         </div>
 
-        {fitment && <div style={{ fontSize: 13, color: C.accent, fontWeight: 600, marginTop: 14 }}>🚗 {fitment}</div>}
+        {fitment && <div style={{ fontSize: 13, color: C.accent, fontWeight: 600, marginTop: 14 }}><Icon name="car" size={14} /> {fitment}</div>}
 
         <div style={{ marginTop: 16, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14 }}>
           <div style={{ fontSize: 12, color: C.muted, fontWeight: 700, marginBottom: 8 }}>WHERE IT IS</div>
-          {state.container && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 8, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', fontSize: 14, fontWeight: 800, borderRadius: 8, padding: '4px 10px' }}>🪣 {[state.container.code, state.container.name].filter(Boolean).join(' · ')}</div>}
-          {grid ? <div style={{ fontSize: 14, fontWeight: 700, color: C.accent }}>🗺️ {grid}</div> : null}
-          {p.location && <div style={{ fontSize: 13, color: C.text, marginTop: 6 }}>📍 {p.location}</div>}
+          {state.container && <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 8, background: '#eef2ff', border: '1px solid #c7d2fe', color: '#3730a3', fontSize: 14, fontWeight: 800, borderRadius: 8, padding: '4px 10px' }}><Icon name="box" size={14} /> {[state.container.code, state.container.name].filter(Boolean).join(' · ')}</div>}
+          {grid ? <div style={{ fontSize: 14, fontWeight: 700, color: C.accent }}><Icon name="map" size={14} /> {grid}</div> : null}
+          {p.location && <div style={{ fontSize: 13, color: C.text, marginTop: 6 }}><Icon name="pin" size={13} /> {p.location}</div>}
           {!grid && !p.location && !state.container && <div style={{ fontSize: 13, color: C.muted, fontStyle: 'italic' }}>No location recorded.</div>}
           {hasGridLoc(p) && wc.rows > 0 && wc.bays > 0 && (
             <div style={{ marginTop: 12, borderTop: `1px solid ${C.border}`, paddingTop: 12 }}>
@@ -128,9 +129,9 @@ export default function Lookup({ storeId, target, warehouse, onClose }) {
   return wrap(
     <>
       {otherStoreNote}
-      <div style={{ fontSize: 20, fontWeight: 800, color: C.accent }}>🪣 {ct.code}</div>
+      <div style={{ fontSize: 20, fontWeight: 800, color: C.accent }}><Icon name="box" size={18} /> {ct.code}</div>
       {ct.name && <div style={{ fontSize: 15, color: C.text, marginTop: 2 }}>{ct.name}</div>}
-      {home && <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, marginTop: 8 }}>🗺️ {home}</div>}
+      {home && <div style={{ fontSize: 13, fontWeight: 700, color: C.accent, marginTop: 8 }}><Icon name="map" size={13} /> {home}</div>}
       {hasGridLoc(ct) && wc.rows > 0 && wc.bays > 0 && (
         <div style={{ marginTop: 12, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 12 }}>
           <WarehouseMap warehouse={warehouse} part={ct} compact />

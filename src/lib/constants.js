@@ -1,13 +1,19 @@
 // Shared PartVault product version — keep in sync with the admin app on every ship.
-export const APP_VERSION = '3.36.35'
+export const APP_VERSION = '3.36.66'
 
 export const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ebay-import'
 
+// Design tokens (mirrors the :root block in index.css — one system, two
+// surfaces). Field-app rules: text read outdoors uses `muted` (8.65:1) or
+// darker, never lighter; the accent passed WCAG as a fill (#BD400B, was
+// #e8590c at 3.58:1); `borderControl` identifies inputs/secondary buttons
+// (3:1, WCAG 1.4.11) while `border` stays decorative.
 export const C = {
-  bg: '#f5f4f0', card: '#ffffff', border: '#ddd9d0',
-  accent: '#e8590c', blue: '#2563eb', green: '#16a34a',
-  red: '#dc2626', yellow: '#b45309', text: '#1c1c1e', muted: '#6b7280',
-  white: '#ffffff', headerBg: '#1c1c1e',
+  bg: '#F5F4F0', card: '#FFFFFF', border: '#D6D2C4', borderControl: '#8E8674',
+  accent: '#BD400B', accentHover: '#9E350A', accentSoft: '#FBEDE4', accentOnDark: '#FF8A4C',
+  blue: '#2B5378', green: '#2C6B3E',
+  red: '#A33128', yellow: '#8A5B0F', text: '#17150F', muted: '#4A453B',
+  white: '#ffffff', headerBg: '#17150F',
 }
 
 export const PART_CONDITIONS = ['Used – Excellent', 'Used – Good', 'Used – Fair', 'For Parts Only', 'Refurbished']
