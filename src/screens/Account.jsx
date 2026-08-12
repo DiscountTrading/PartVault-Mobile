@@ -5,7 +5,7 @@ import { biometricSupported, isEnabledFor, enableBiometric, disableBiometric } f
 import TopTabs from '../components/TopTabs'
 import Icon from '../components/Icon'
 
-export default function Account({ email, userId, stores = [], activeStoreId, setActiveStore, onCars, onCollect, onAccount, onScan }) {
+export default function Account({ email, userId, stores = [], activeStoreId, setActiveStore, onCars, onCollect, onAccount, onScan, onApprove }) {
   const active = stores.find(s => s.store_id === activeStoreId)
   const [bioOn, setBioOn] = useState(() => !!userId && isEnabledFor(userId))
   const [bioBusy, setBioBusy] = useState(false)
@@ -77,6 +77,12 @@ export default function Account({ email, userId, stores = [], activeStoreId, set
             style={{ display: 'block', marginTop: 12, textAlign: 'center', background: '#fff', color: C.accent, border: `1.5px solid ${C.accent}`, borderRadius: 10, padding: '11px', fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>
             <Icon name="monitor" /> Open Admin Panel ↗
           </a>
+          {onApprove && (
+            <button onClick={onApprove}
+              style={{ display: 'block', width: '100%', marginTop: 10, textAlign: 'center', background: '#fff', color: C.text, border: `1.5px solid ${C.borderControl}`, borderRadius: 12, minHeight: 48, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+              <Icon name="check" /> Approve a computer sign-in
+            </button>
+          )}
         </div>
 
         {/* Face ID app lock */}

@@ -9,6 +9,7 @@ import Account from './screens/Account'
 import Collect from './screens/Collect'
 import Scan from './screens/Scan'
 import Lookup from './screens/Lookup'
+import ApproveLogin from './screens/ApproveLogin'
 import Icon from './components/Icon'
 
 // A scanned QR opens app.partvault.app/p/<sku> or /c/<code>. Capture that path
@@ -21,6 +22,12 @@ function parseDeepLink() {
     if (m) { history.replaceState({}, '', '/'); return { kind: 'part', value: decodeURIComponent(m[1]) } }
     m = path.match(/^\/c\/([^/?#]+)/i)
     if (m) { history.replaceState({}, '', '/'); return { kind: 'container', value: decodeURIComponent(m[1]) } }
+    // Computer sign-in approval QR: /approve?code=XXXXXXXX
+    if (/^\/approve$/i.test(path)) {
+      const code = new URLSearchParams(window.location.search).get('code') || ''
+      history.replaceState({}, '', '/')
+      return { kind: 'approve', value: code }
+    }
   } catch { /* ignore */ }
   return null
 }
@@ -205,6 +212,11 @@ export default function App() {
 
   if (locked) return <LockScreen userId={session.user.id} email={session.user?.email} onUnlock={() => setLocked(false)} />
 
+  // Computer sign-in approval — needs a session (and Face ID above) but no store.
+  if (deepLink?.kind === 'approve') return (
+    <ApproveLogin initialCode={deepLink.value} email={session.user?.email} onClose={() => setDeepLink(null)} />
+  )
+
   if (!storesLoaded) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
       Loading…
@@ -222,7 +234,7 @@ export default function App() {
     <div>
       <DesktopNotice />
       {tab === 'account' ? (
-        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onCollect={goCollect} onAccount={goAccount} onScan={onScan} />
+        <Account email={session.user?.email} userId={session.user?.id} stores={stores} activeStoreId={activeStoreId} setActiveStore={setActiveStore} onCars={goCars} onCollect={goCollect} onAccount={goAccount} onScan={onScan} onApprove={() => setDeepLink({ kind: 'approve', value: '' })} />
       ) : tab === 'collect' ? (
         <Collect storeId={activeStoreId} activeStore={stores.find(s => s.store_id === activeStoreId)} warehouse={warehouse} onCars={goCars} onCollect={goCollect} onAccount={goAccount} onScan={onScan} />
       ) : tab === 'scan' ? (

@@ -3,7 +3,8 @@ import { sb } from '../lib/supabase'
 import { C } from '../lib/constants'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
+  // Remember the last email per device — returning users are one tap from a code.
+  const [email, setEmail] = useState(() => { try { return localStorage.getItem('pv_last_email') || '' } catch { return '' } })
   const [code, setCode] = useState('')
   const [step, setStep] = useState('email')
   const [creating, setCreating] = useState(false) // true = new worker creating an account
@@ -15,7 +16,7 @@ export default function Login() {
     setLoading(true)
     const { error: e } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: creating } })
     if (e) setError(e.message)
-    else setStep('code')
+    else { setStep('code'); try { localStorage.setItem('pv_last_email', email) } catch { /* ignore */ } }
     setLoading(false)
   }
 
