@@ -3,7 +3,7 @@
 // fails the build on drift. Bump BOTH every release: the browser only installs a
 // new worker when this file's bytes change, so a stale VERSION here silently
 // disables updates for every phone.
-const VERSION = '3.36.69';
+const VERSION = '3.36.70';
 const CACHE = `partvault-app-${VERSION}`;
 // '/' is the app shell. Never list '/index.html' — hosts 307 it to '/', and iOS
 // refuses a redirect-tainted cached response for a navigation.
@@ -55,7 +55,11 @@ self.addEventListener('fetch', (e) => {
   const { request } = e;
   if (request.method !== 'GET' || !request.url.startsWith(self.location.origin)) return;
 
-  const cacheKey = request.mode === 'navigate' ? '/' : request;
+  // Navigations get the cached shell — EXCEPT real standalone pages (anything
+  // with a file extension, e.g. /privacy.html), which must load themselves.
+  const path = new URL(request.url).pathname;
+  const isShellNav = request.mode === 'navigate' && !/\.[a-z0-9]+$/i.test(path);
+  const cacheKey = isShellNav ? '/' : request;
   e.respondWith(
     caches.match(cacheKey).then((cached) => {
       const refresh = fetch(request)

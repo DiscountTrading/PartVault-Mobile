@@ -3,6 +3,7 @@ import { sb } from '../lib/supabase'
 import { C, MAKES, makesFor } from '../lib/constants'
 import TopTabs from '../components/TopTabs'
 import Icon from '../components/Icon'
+import InstallPrompt from '../components/InstallPrompt'
 import CameraCapture from '../components/CameraCapture'
 import { makeMainAndThumb } from '../lib/image'
 import { usePhotoDrag } from '../lib/reorder'
@@ -141,7 +142,9 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
         <TopTabs active="cars" onCars={onCars} onCollect={onCollect} onAccount={onAccount} onScan={onScan} />
       </div>
 
-      <div style={{ padding: 20, paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
+      <div style={{ paddingTop: 12 }}><InstallPrompt /></div>
+
+      <div style={{ padding: '8px 20px 20px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>Cars</div>
           <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 12, minHeight: 48, padding: '0 20px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
