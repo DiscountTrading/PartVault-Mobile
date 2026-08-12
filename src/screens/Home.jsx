@@ -25,6 +25,8 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
   useEffect(() => () => { carCamStreamRef.current?.getTracks().forEach(t => t.stop()) }, [])
   const [identifying, setIdentifying] = useState(false)
   const [idMsg, setIdMsg] = useState('')
+  // Block the auto-update reload while the Add-Car sheet is open (see main.jsx).
+  useEffect(() => { window.__pvFormOpen = showAdd; return () => { window.__pvFormOpen = false } }, [showAdd])
 
   // Identify make/model/year from the car photos via AI (replaces VIN lookup).
   const identifyFromPhotos = async () => {

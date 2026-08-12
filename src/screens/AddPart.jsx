@@ -31,6 +31,9 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
 
   // Stop the camera when leaving Add Part (not each time the overlay closes).
   useEffect(() => () => { camStreamRef.current?.getTracks().forEach(t => t.stop()) }, [])
+  // Block the auto-update reload while a capture is in progress (see main.jsx) —
+  // an update landing mid-form would throw away the photos and fields.
+  useEffect(() => { window.__pvFormOpen = true; return () => { window.__pvFormOpen = false } }, [])
   const [namingAI, setNamingAI] = useState(false)
   const fileRef = useRef()
   const nameTried = useRef(false)
