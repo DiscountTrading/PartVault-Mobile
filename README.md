@@ -1,16 +1,30 @@
-# React + Vite
+# PartVault Field App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Phone-first PWA for capturing parts in the yard: photograph a part, let AI fill
+the details, file it under a SKU, and hand it to the admin app for listing.
+Live at https://app.partvault.app (Cloudflare Pages deploys `main` on push).
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React + Vite, inline styles driven by the shared design tokens
+  (`src/index.css` `:root` block + the `C` object in `src/lib/constants.js` —
+  identical values to the marketing site).
+- Supabase (shared project with the admin app). Auth session lives in a chunked
+  cookie on `.partvault.app` so one sign-in covers admin + field app — keep
+  `src/lib/supabase.js` identical to the admin's copy.
+- Service worker (`public/sw.js`) with the PWA update kit: versioned cache,
+  eager update checks, auto-reload on new versions.
 
-## React Compiler
+## Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+npm run dev     # http://localhost:5173
+npm run build   # runs scripts/check-version.mjs first — fails on version drift
+```
 
-## Expanding the ESLint configuration
+## Releasing
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Bump BOTH `APP_VERSION` in `src/lib/constants.js` AND `VERSION` in
+`public/sw.js` (the build fails if they differ), then push to `main`.
+The service worker only updates phones when its bytes change.
