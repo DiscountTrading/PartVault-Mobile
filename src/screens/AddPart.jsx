@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { sb } from '../lib/supabase'
-import { C, CATEGORY_NAMES } from '../lib/constants'
+import { C, CATEGORY_NAMES, PART_CONDITIONS } from '../lib/constants'
 import { warehouseConfig } from '../lib/warehouse'
 import Icon from '../components/Icon'
 import { makeMainAndThumb, toSmallBase64 } from '../lib/image'
@@ -12,9 +12,15 @@ const PhotoEditor = lazy(() => import('../components/PhotoEditor'))
 
 const MAX_PHOTOS = 24
 
-export default function AddPart({ car, storeId, warehouse, skuConfigured = true, onSave, onCancel }) {
+export default function AddPart({ car = null, storeId, warehouse, skuConfigured = true, onSave, onCancel }) {
   const [photos, setPhotos] = useState([]) // { id, preview, url, thumb_url, uploading }
-  const [form, setForm] = useState({ title: '', list_price: '', notes: '', location: '', loc_row: '', loc_bay: '', loc_shelf: '', container_id: '' })
+  // Fitment (make/model/year) and condition live on the form. With a donor car
+  // they're pre-filled from it and hidden; captured directly (buy-in / aftermarket)
+  // they're editable so the part still carries fitment for the listing.
+  const [form, setForm] = useState({
+    title: '', list_price: '', notes: '', location: '', loc_row: '', loc_bay: '', loc_shelf: '', container_id: '',
+    make: car?.make || '', model: car?.model || '', year: car?.year || '', condition: 'Used – Good',
+  })
   const [containers, setContainers] = useState([])
   const [aiAssess, setAiAssess] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -145,16 +151,16 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
       const uploaded = photos.filter(p => p.url)
       // SKU comes from the store's admin-configured format (atomic store-wide counter),
       // so mobile and admin stay consistent — the PWA is just an extension of the admin app.
-      const { data: sku, error: skuErr } = await sb.rpc('generate_next_sku', { p_store_id: storeId, p_car_make: car.make || null })
+      const { data: sku, error: skuErr } = await sb.rpc('generate_next_sku', { p_store_id: storeId, p_car_make: car?.make || form.make || null })
       if (skuErr || !sku) throw new Error(skuErr?.message || 'Could not generate SKU')
       const { data, error } = await sb.from('parts').insert({
         store_id: storeId,
-        car_id: car.id,
+        car_id: car?.id || null,
         sku,
         title: form.title,
         category: CATEGORY_NAMES[0],
         subcategory: '',
-        condition: 'Used – Good',
+        condition: form.condition || 'Used – Good',
         list_price: +form.list_price || 0,
         notes: form.notes,
         location: form.location?.trim() || null,
@@ -168,9 +174,9 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
         source: 'manual',
         acquired_date: new Date().toISOString().slice(0, 10),
         photos: uploaded.map(p => ({ url: p.url, ...(p.id === pnId ? { part_number: true } : {}) })),
-        make: car.make || '',
-        model: car.model || '',
-        year: car.year || '',
+        make: car?.make || form.make || '',
+        model: car?.model || form.model || '',
+        year: car?.year || form.year || '',
         costs: { acquisition: 0, labour: 0, storage: 0, packaging: 0, postage: 0, holding: 0 },
         ai_assessed: false,
         // Opt this capture into server-side AI assessment. A database trigger
@@ -203,7 +209,7 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
       {/* Header */}
       <div style={{ background: C.headerBg, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, position: 'sticky', top: 0, zIndex: 10 }}>
         <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', fontSize: 22, cursor: 'pointer', padding: 0, lineHeight: 1 }}>‹</button>
-        <div style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>Add Part — {car.make} {car.model}</div>
+        <div style={{ color: '#fff', fontWeight: 700, fontSize: 17 }}>Add Part{car ? ` — ${car.make} ${car.model}` : ''}</div>
       </div>
 
       <div style={{ padding: 20, paddingBottom: 100 }}>
@@ -251,7 +257,7 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
         </div>
         <input value={form.title} onChange={e => { nameTried.current = true; set('title', e.target.value) }}
           onFocus={() => { if (nameB64Ref.current && !form.title?.trim() && !showNameOpts && !nameOptsBusy) showNameOptions() }}
-          placeholder={namingAI ? 'AI is naming this part…' : `e.g. ${car.make} ${car.model} headlight`}
+          placeholder={namingAI ? 'AI is naming this part…' : `e.g. ${(car?.make || form.make || 'Toyota')} ${(car?.model || form.model || 'Hilux')} headlight`}
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 4, boxSizing: 'border-box', outline: 'none' }} />
 
         {showNameOpts && (
@@ -277,6 +283,30 @@ export default function AddPart({ car, storeId, warehouse, skuConfigured = true,
         <input value={form.list_price} onChange={e => set('list_price', e.target.value)}
           placeholder="$0 — set later or let AI suggest" type="number" inputMode="decimal"
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
+
+        {/* Condition — matters for buy-in/aftermarket sellers (New, Refurbished…). */}
+        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Condition</label>
+        <select value={form.condition} onChange={e => set('condition', e.target.value)}
+          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.borderControl}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none', background: '#fff', appearance: 'none' }}>
+          {PART_CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {/* Fitment — with a donor car it comes from the car; captured directly
+            (buy-in / aftermarket) the seller can enter which vehicle it fits so
+            the listing still has make/model/year. Hidden when a car is linked. */}
+        {!car && (
+          <>
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Fits vehicle (optional)</label>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+              <input value={form.make} onChange={e => set('make', e.target.value)} placeholder="Make"
+                style={{ flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
+              <input value={form.model} onChange={e => set('model', e.target.value)} placeholder="Model"
+                style={{ flex: 1, minWidth: 0, padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
+              <input value={form.year} onChange={e => set('year', e.target.value)} placeholder="Year" inputMode="numeric"
+                style={{ width: 88, padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, boxSizing: 'border-box', outline: 'none' }} />
+            </div>
+          </>
+        )}
 
         {/* Storage location (optional) — where the part is shelved, so it's easy to pull when sold */}
         <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Storage location (optional)</label>

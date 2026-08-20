@@ -16,7 +16,18 @@ export const C = {
   white: '#ffffff', headerBg: '#17150F',
 }
 
-export const PART_CONDITIONS = ['Used – Excellent', 'Used – Good', 'Used – Fair', 'For Parts Only', 'Refurbished']
+export const PART_CONDITIONS = ['New', 'New – Aftermarket', 'Used – Excellent', 'Used – Good', 'Used – Fair', 'Refurbished', 'For Parts Only']
+
+// How a store gets its stock — see the admin constants for the full note.
+// Kept identical across both apps. Stored in stores.settings.sourcing.
+export const SOURCING_MODES = {
+  dismantle: { id: 'dismantle', label: 'Dismantle vehicles', blurb: 'You pull parts from cars you buy and break.' },
+  buyin: { id: 'buyin', label: 'Buy parts in', blurb: 'You buy stock (new, aftermarket or used) to resell — no donor cars.' },
+  both: { id: 'both', label: 'Both', blurb: 'You dismantle cars and also buy some parts in.' },
+}
+export const DEFAULT_SOURCING = 'dismantle'
+export const sourcingMode = (settings) => SOURCING_MODES[settings?.sourcing]?.id || DEFAULT_SOURCING
+export const usesCars = (settings) => sourcingMode(settings) !== 'buyin'
 
 export const EBAY_AU_CATEGORIES = {
   'Air & Fuel Delivery': ['Air Filters', 'Carburettors & Parts', 'Fuel Filters', 'Fuel Injectors', 'Fuel Pumps', 'Intercoolers', 'Throttle Bodies', 'Turbochargers & Parts', 'Other'],

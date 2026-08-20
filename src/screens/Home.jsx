@@ -11,7 +11,7 @@ import { identifyCar } from '../lib/ai'
 
 const MAX_CAR_PHOTOS = 8
 
-export default function Home({ onSelectCar, storeId, activeStore, marketplace, onCars, onCollect, onAccount, onScan }) {
+export default function Home({ onSelectCar, storeId, activeStore, marketplace, sourcing = 'dismantle', onAddPartDirect, onCars, onCollect, onAccount, onScan }) {
   const [cars, setCars] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
@@ -147,9 +147,17 @@ export default function Home({ onSelectCar, storeId, activeStore, marketplace, o
       <div style={{ padding: '8px 20px 20px', paddingBottom: 'calc(24px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontSize: 20, fontWeight: 700, color: C.text }}>Cars</div>
-          <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 12, minHeight: 48, padding: '0 20px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
-            + Add Car
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {/* 'both' stores also buy parts in — offer a direct carless capture. */}
+            {sourcing === 'both' && onAddPartDirect && (
+              <button onClick={onAddPartDirect} style={{ background: '#fff', color: C.text, border: `1.5px solid ${C.borderControl}`, borderRadius: 12, minHeight: 48, padding: '0 16px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+                + Part
+              </button>
+            )}
+            <button onClick={() => setShowAdd(true)} style={{ background: C.accent, color: '#fff', border: 'none', borderRadius: 12, minHeight: 48, padding: '0 20px', fontSize: 16, fontWeight: 700, cursor: 'pointer' }}>
+              + Add Car
+            </button>
+          </div>
         </div>
 
         {/* Status filter — defaults to Active. Selected chip is INK, not orange:

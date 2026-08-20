@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { sb } from './lib/supabase'
-import { C } from './lib/constants'
+import { C, sourcingMode, usesCars } from './lib/constants'
 import Login from './screens/Login'
 import Home from './screens/Home'
+import PartsHome from './screens/PartsHome'
 import CarDetail from './screens/CarDetail'
 import AddPart from './screens/AddPart'
 import Account from './screens/Account'
@@ -118,6 +119,7 @@ export default function App() {
   const [marketplace, setMarketplace] = useState('EBAY_AU') // active store's marketplace (for region make ordering)
   const [warehouse, setWarehouse] = useState(WAREHOUSE_DEFAULTS) // optional grid location config
   const [skuConfigured, setSkuConfigured] = useState(true)       // has the store set a SKU format? (default true = don't prompt until known)
+  const [sourcing, setSourcing] = useState('dismantle')          // how the store gets parts: dismantle | buyin | both
   const [storesLoaded, setStoresLoaded] = useState(false)
   const [tab, setTab] = useState('cars')          // 'cars' | 'account'
   const [screen, setScreen] = useState('list')     // within Cars: 'list' | 'car-detail' | 'add-part'
@@ -182,6 +184,7 @@ export default function App() {
     sb.from('stores').select('settings, sku_format_config').eq('id', activeStoreId).single()
       .then(({ data }) => {
         setMarketplace(data?.settings?.marketplace || 'EBAY_AU')
+        setSourcing(sourcingMode(data?.settings))
         setWarehouse({ ...WAREHOUSE_DEFAULTS, ...(data?.settings?.warehouse || {}) })
         // Has the store set up a SKU format? (null/empty template = not set up)
         setSkuConfigured(!!(data?.sku_format_config && data.sku_format_config.template))
@@ -189,6 +192,8 @@ export default function App() {
   }, [activeStoreId])
 
   const goCars = () => { setTab('cars'); setScreen('list') }
+  // Buy-in / aftermarket capture: a part with no donor car.
+  const goAddPartDirect = () => { setSelectedCar(null); setTab('cars'); setScreen('add-part') }
   const goCollect = () => setTab('collect')
   const goAccount = () => setTab('account')
   const goScan = () => setTab('scan')
@@ -245,8 +250,10 @@ export default function App() {
           storeId={activeStoreId}
           warehouse={warehouse}
           skuConfigured={skuConfigured}
-          onSave={() => setScreen('car-detail')}
-          onCancel={() => setScreen('car-detail')}
+          // A car-linked capture returns to that car; a direct (buy-in) capture
+          // has no car to return to, so it goes back to the list.
+          onSave={() => setScreen(selectedCar ? 'car-detail' : 'list')}
+          onCancel={() => setScreen(selectedCar ? 'car-detail' : 'list')}
         />
       ) : screen === 'car-detail' ? (
         <CarDetail
@@ -255,15 +262,29 @@ export default function App() {
           onBack={() => { setSelectedCar(null); setScreen('list') }}
           onAddPart={() => setScreen('add-part')}
         />
+      ) : sourcing === 'buyin' ? (
+        // Buy-in stores don't dismantle cars — a flat parts list is the home.
+        <PartsHome
+          storeId={activeStoreId}
+          activeStore={stores.find(s => s.store_id === activeStoreId)}
+          sourcing={sourcing}
+          onCars={goCars}
+          onCollect={goCollect}
+          onAccount={goAccount}
+          onScan={onScan}
+          onAddPartDirect={goAddPartDirect}
+        />
       ) : (
         <Home
           storeId={activeStoreId}
           activeStore={stores.find(s => s.store_id === activeStoreId)}
           marketplace={marketplace}
+          sourcing={sourcing}
           onCars={goCars}
           onCollect={goCollect}
           onAccount={goAccount}
           onScan={onScan}
+          onAddPartDirect={goAddPartDirect}
           onSelectCar={car => { setSelectedCar(car); setScreen('car-detail') }}
         />
       )}
