@@ -1,5 +1,5 @@
 // Shared PartVault product version — keep in sync with the admin app on every ship.
-export const APP_VERSION = '3.36.71'
+export const APP_VERSION = '3.36.72'
 
 export const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ebay-import'
 
@@ -17,6 +17,14 @@ export const C = {
 }
 
 export const PART_CONDITIONS = ['New', 'New – Aftermarket', 'Used – Excellent', 'Used – Good', 'Used – Fair', 'Refurbished', 'For Parts Only']
+
+// Part status → colour + label. One source for the whole field app (screens
+// used to each define their own, drifting on capitalisation and completeness).
+// Matches the admin app's STATUS_COLORS/STATUS_LABELS.
+export const STATUS_COLORS = { in_stock: C.blue, listed: C.accent, sold: C.green, scrapped: C.muted, deferred: C.yellow }
+export const STATUS_LABELS = { in_stock: 'In stock', listed: 'Listed', sold: 'Sold', scrapped: 'Scrapped', deferred: 'Deferred' }
+export const statusColor = (s) => STATUS_COLORS[s] || C.muted
+export const statusLabel = (s) => STATUS_LABELS[s] || s
 
 // How a store gets its stock — see the admin constants for the full note.
 // Kept identical across both apps. Stored in stores.settings.sourcing.

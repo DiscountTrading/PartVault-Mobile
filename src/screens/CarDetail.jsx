@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
-import { C, CATEGORY_NAMES } from '../lib/constants'
+import { C, CATEGORY_NAMES, statusColor, statusLabel } from '../lib/constants'
 import Icon from '../components/Icon'
-
-const STATUS_COLORS = { in_stock: C.blue, listed: C.accent, sold: C.green, scrapped: C.muted }
-const STATUS_LABELS = { in_stock: 'In Stock', listed: 'Listed', sold: 'Sold', scrapped: 'Scrapped' }
 
 export default function CarDetail({ car, storeId, onBack, onAddPart }) {
   const [parts, setParts] = useState([])
@@ -119,7 +116,6 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {parts.map(p => {
-            const statusColor = STATUS_COLORS[p.status] || C.muted
             const thumb = p.photos?.[0]?.url || p.photos?.[0]?.ebay_url
             return (
               <div key={p.id} onClick={() => openEdit(p)} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 14, display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}>
@@ -138,7 +134,7 @@ export default function CarDetail({ car, storeId, onBack, onAddPart }) {
                   {isAssessing(p)
                     ? <div style={{ fontSize: 11, fontWeight: 700, color: '#7c3aed' }}><Icon name="sparkle" size={12} /> Assessing…</div>
                     : <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>${p.list_price}</div>}
-                  <div style={{ fontSize: 11, fontWeight: 600, color: statusColor, marginTop: 2 }}>{STATUS_LABELS[p.status] || p.status}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: statusColor(p.status), marginTop: 2 }}>{statusLabel(p.status)}</div>
                 </div>
               </div>
             )

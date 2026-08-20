@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { sb } from '../lib/supabase'
-import { C } from '../lib/constants'
+import { C, statusColor, statusLabel } from '../lib/constants'
 import { warehouseConfig, formatGridLoc, hasGridLoc } from '../lib/warehouse'
 import WarehouseMap from '../components/WarehouseMap'
 import Icon from '../components/Icon'
@@ -9,8 +9,6 @@ import Icon from '../components/Icon'
 // /c/<code> → container + its contents. Read-only "what is this / where is it".
 // Searches the active store first, then any store the user can access (RLS keeps
 // it to their own), so a label still resolves after switching stores.
-const STATUS_COLOR = { in_stock: C.blue, listed: C.accent, sold: C.green, scrapped: C.muted, deferred: C.yellow }
-const STATUS_LABEL = { in_stock: 'In stock', listed: 'Listed', sold: 'Sold', scrapped: 'Scrapped', deferred: 'Deferred' }
 
 export default function Lookup({ storeId, target, warehouse, onClose }) {
   const wc = warehouseConfig(warehouse)
@@ -99,7 +97,7 @@ export default function Lookup({ storeId, target, warehouse, onClose }) {
             <div style={{ fontSize: 17, fontWeight: 800, color: C.text, lineHeight: 1.25 }}>{p.title || 'Untitled part'}</div>
             <div style={{ fontSize: 13, color: C.muted, marginTop: 4, fontFamily: 'monospace', fontWeight: 700 }}>{p.sku || 'no SKU'}</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: STATUS_COLOR[p.status] || C.muted, borderRadius: 20, padding: '3px 10px' }}>{STATUS_LABEL[p.status] || p.status}</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: statusColor(p.status), borderRadius: 20, padding: '3px 10px' }}>{statusLabel(p.status)}</span>
               {+p.list_price > 0 && <span style={{ fontSize: 15, fontWeight: 800, color: C.text }}>${(+p.list_price).toFixed(0)}</span>}
             </div>
           </div>
@@ -145,7 +143,7 @@ export default function Lookup({ storeId, target, warehouse, onClose }) {
           <div key={p.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: '10px 12px' }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title || 'Untitled part'}</div>
             <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>
-              <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{p.sku || 'no SKU'}</span> · {STATUS_LABEL[p.status] || p.status}
+              <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{p.sku || 'no SKU'}</span> · {statusLabel(p.status)}
             </div>
           </div>
         ))}

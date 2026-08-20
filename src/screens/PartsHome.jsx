@@ -1,14 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { sb } from '../lib/supabase'
-import { C } from '../lib/constants'
+import { C, statusColor, statusLabel } from '../lib/constants'
 import TopTabs from '../components/TopTabs'
 import Icon from '../components/Icon'
 
 // Buy-in home: a flat, capture-first parts list for stores that don't dismantle
 // cars. "+ Add Part" goes straight to a carless capture. Parts are read-only
 // here (edited on the admin app) — this view is for capturing and confirming.
-const STATUS_LABELS = { in_stock: 'In stock', listed: 'Listed', sold: 'Sold', scrapped: 'Scrapped', deferred: 'Deferred' }
-const statusColor = s => s === 'listed' ? C.accent : s === 'sold' ? C.green : s === 'in_stock' ? C.blue : C.muted
 
 export default function PartsHome({ storeId, activeStore, sourcing, onAddPartDirect, onCars, onCollect, onAccount, onScan }) {
   const [parts, setParts] = useState([])
@@ -78,7 +76,7 @@ export default function PartsHome({ storeId, activeStore, sourcing, onAddPartDir
                 </div>
                 <div style={{ textAlign: 'right', flexShrink: 0 }}>
                   {p.list_price > 0 && <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>${p.list_price}</div>}
-                  <div style={{ fontSize: 12, fontWeight: 600, color: statusColor(p.status), marginTop: 2 }}>{STATUS_LABELS[p.status] || p.status}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: statusColor(p.status), marginTop: 2 }}>{statusLabel(p.status)}</div>
                 </div>
               </div>
             </div>
