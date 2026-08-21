@@ -19,7 +19,7 @@ export default function PartsHome({ storeId, activeStore, sourcing, onAddPartDir
     // Newest first; cap at a sensible page — this is a capture-confirm list, not
     // the full catalogue (that's the admin app).
     const { data } = await sb.from('parts')
-      .select('id, title, make, model, year, sku, status, list_price, condition, created_at')
+      .select('id, title, make, model, year, sku, status, list_price, condition, quantity, quantity_sold, created_at')
       .eq('store_id', storeId).is('deleted_at', null)
       .order('created_at', { ascending: false }).limit(100)
     setParts(data || [])
@@ -68,7 +68,10 @@ export default function PartsHome({ storeId, activeStore, sourcing, onAddPartDir
             <div key={p.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: '14px 16px', minHeight: 72 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title || 'Untitled part'}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {p.title || 'Untitled part'}
+                    {+p.quantity > 1 && <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: C.accent, background: C.accentSoft, borderRadius: 5, padding: '1px 6px' }}>×{Math.max(0, p.quantity - (p.quantity_sold || 0))}</span>}
+                  </div>
                   <div style={{ fontSize: 15, color: C.muted, marginTop: 2 }}>
                     {[p.make, p.model, p.year].filter(Boolean).join(' ') || p.condition || '—'}
                     {p.sku ? ` · ${p.sku}` : ''}

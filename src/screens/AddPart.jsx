@@ -19,7 +19,7 @@ export default function AddPart({ car = null, storeId, warehouse, skuConfigured 
   // they're editable so the part still carries fitment for the listing.
   const [form, setForm] = useState({
     title: '', list_price: '', notes: '', location: '', loc_row: '', loc_bay: '', loc_shelf: '', container_id: '',
-    make: car?.make || '', model: car?.model || '', year: car?.year || '', condition: 'Used – Good',
+    make: car?.make || '', model: car?.model || '', year: car?.year || '', condition: 'Used – Good', quantity: '1',
   })
   const [containers, setContainers] = useState([])
   const [aiAssess, setAiAssess] = useState(true)
@@ -171,6 +171,7 @@ export default function AddPart({ car = null, storeId, warehouse, skuConfigured 
         // applied the containers migration can still capture parts normally.
         ...(form.container_id ? { container_id: form.container_id } : {}),
         status: 'in_stock',
+        quantity: Math.max(1, parseInt(form.quantity, 10) || 1),
         source: 'manual',
         acquired_date: new Date().toISOString().slice(0, 10),
         photos: uploaded.map(p => ({ url: p.url, ...(p.id === pnId ? { part_number: true } : {}) })),
@@ -284,12 +285,22 @@ export default function AddPart({ car = null, storeId, warehouse, skuConfigured 
           placeholder="$0 — set later or let AI suggest" type="number" inputMode="decimal"
           style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.border}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none' }} />
 
-        {/* Condition — matters for buy-in/aftermarket sellers (New, Refurbished…). */}
-        <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Condition</label>
-        <select value={form.condition} onChange={e => set('condition', e.target.value)}
-          style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.borderControl}`, fontSize: 16, marginBottom: 14, boxSizing: 'border-box', outline: 'none', background: '#fff', appearance: 'none' }}>
-          {PART_CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+        {/* Condition + quantity. Quantity is how many identical units you're
+            adding — 1 for a single part, more for bought-in stock. */}
+        <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Condition</label>
+            <select value={form.condition} onChange={e => set('condition', e.target.value)}
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.borderControl}`, fontSize: 16, boxSizing: 'border-box', outline: 'none', background: '#fff', appearance: 'none' }}>
+              {PART_CONDITIONS.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div style={{ width: 96 }}>
+            <label style={{ fontSize: 12, color: C.muted, fontWeight: 600, display: 'block', marginBottom: 6 }}>Qty</label>
+            <input value={form.quantity} onChange={e => set('quantity', e.target.value.replace(/\D/g, ''))} inputMode="numeric"
+              style={{ width: '100%', padding: '12px 14px', borderRadius: 8, border: `1.5px solid ${C.borderControl}`, fontSize: 16, boxSizing: 'border-box', outline: 'none', textAlign: 'center', fontWeight: 700 }} />
+          </div>
+        </div>
 
         {/* Fitment — with a donor car it comes from the car; captured directly
             (buy-in / aftermarket) the seller can enter which vehicle it fits so
