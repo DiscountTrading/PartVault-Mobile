@@ -1,5 +1,5 @@
 // Shared PartVault product version — keep in sync with the admin app on every ship.
-export const APP_VERSION = '3.36.74'
+export const APP_VERSION = '3.36.75'
 
 export const EDGE_FN = 'https://mtpektsxaklhedknincs.supabase.co/functions/v1/ebay-import'
 
@@ -36,6 +36,13 @@ export const SOURCING_MODES = {
 export const DEFAULT_SOURCING = 'dismantle'
 export const sourcingMode = (settings) => SOURCING_MODES[settings?.sourcing]?.id || DEFAULT_SOURCING
 export const usesCars = (settings) => sourcingMode(settings) !== 'buyin'
+// Two-checkbox capture of the mode — kept identical to the admin app.
+export const sourcingFromFlags = (dismantle, buyin) =>
+  dismantle && buyin ? 'both' : buyin ? 'buyin' : 'dismantle'
+export const flagsFromSourcing = (mode) => ({
+  dismantle: mode !== 'buyin',
+  buyin: mode === 'buyin' || mode === 'both',
+})
 
 export const EBAY_AU_CATEGORIES = {
   'Air & Fuel Delivery': ['Air Filters', 'Carburettors & Parts', 'Fuel Filters', 'Fuel Injectors', 'Fuel Pumps', 'Intercoolers', 'Throttle Bodies', 'Turbochargers & Parts', 'Other'],
