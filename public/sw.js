@@ -3,7 +3,7 @@
 // fails the build on drift. Bump BOTH every release: the browser only installs a
 // new worker when this file's bytes change, so a stale VERSION here silently
 // disables updates for every phone.
-const VERSION = '3.36.76';
+const VERSION = '3.36.77';
 const CACHE = `partvault-app-${VERSION}`;
 // '/' is the app shell. Never list '/index.html' — hosts 307 it to '/', and iOS
 // refuses a redirect-tainted cached response for a navigation.
